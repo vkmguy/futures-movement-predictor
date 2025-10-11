@@ -1,11 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema, insertWeeklyExpectedMovesSchema } from "@shared/schema";
+import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema, insertWeeklyExpectedMovesSchema, insertHistoricalDailyExpectedMovesSchema } from "@shared/schema";
 import { setupMarketSimulator } from "./market-simulator";
 import { calculateVolatility } from "./volatility-models";
 import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek, getWeekStartDate } from "./weekly-calculator";
 import { getMarketStatus } from "./market-hours";
+import { getLastTradedPrice, getAllLastTradedPrices } from "./yahoo-finance";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get market status
@@ -357,6 +358,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const update = { [updateKey]: actualClose };
 
       const result = await storage.updateWeeklyMoves(req.params.symbol, update);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update actual close" });
+    }
+  });
+
+  // Historical Daily Expected Moves Routes
+  
+  // Get all historical daily moves
+  app.get("/api/historical-daily-moves", async (req, res) => {
+    try {
+      const moves = await storage.getAllHistoricalDailyMoves();
+      res.json(moves);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch historical daily moves" });
+    }
+  });
+
+  // Get historical daily moves by symbol
+  app.get("/api/historical-daily-moves/:symbol", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
+      const moves = await storage.getHistoricalDailyMovesBySymbol(req.params.symbol, limit);
+      res.json(moves);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch historical daily moves" });
+    }
+  });
+
+  // Collect daily data from Yahoo Finance and create historical expected moves
+  app.post("/api/collect-daily-data", async (req, res) => {
+    try {
+      const quotes = await getAllLastTradedPrices();
+      const results = [];
+
+      for (const quote of quotes) {
+        // Get contract to retrieve volatility data
+        const contract = await storage.getContractBySymbol(quote.symbol);
+        if (!contract) {
+          console.error(`Contract not found for symbol: ${quote.symbol}`);
+          continue;
+        }
+
+        // Calculate daily volatility: σ_daily = σ_weekly / √5
+        const dailyVolatility = contract.weeklyVolatility / Math.sqrt(5);
+
+        // Calculate expected move ranges
+        const expectedHigh = quote.regularMarketPrice + (quote.regularMarketPrice * dailyVolatility);
+        const expectedLow = quote.regularMarketPrice - (quote.regularMarketPrice * dailyVolatility);
+
+        // Create historical daily expected moves record
+        const movesData: typeof insertHistoricalDailyExpectedMovesSchema._type = {
+          contractSymbol: quote.symbol,
+          date: new Date(),
+          lastTradedPrice: quote.regularMarketPrice,
+          previousClose: quote.regularMarketPreviousClose,
+          weeklyVolatility: contract.weeklyVolatility,
+          dailyVolatility,
+          expectedHigh,
+          expectedLow,
+          actualClose: null,
+          withinRange: null,
+        };
+
+        const validatedData = insertHistoricalDailyExpectedMovesSchema.parse(movesData);
+        const created = await storage.createHistoricalDailyMoves(validatedData);
+        results.push(created);
+      }
+
+      res.status(201).json({ 
+        message: `Collected daily data for ${results.length} contracts`,
+        data: results 
+      });
+    } catch (error) {
+      console.error("Error collecting daily data:", error);
+      res.status(500).json({ error: "Failed to collect daily data" });
+    }
+  });
+
+  // Update historical daily moves with actual close price
+  app.patch("/api/historical-daily-moves/:id/actual-close", async (req, res) => {
+    try {
+      const { actualClose } = req.body;
+      
+      if (typeof actualClose !== 'number') {
+        return res.status(400).json({ error: "Invalid actual close price" });
+      }
+
+      // Get the move to check if it's within range
+      const allMoves = await storage.getAllHistoricalDailyMoves();
+      const move = allMoves.find(m => m.id === req.params.id);
+      
+      if (!move) {
+        return res.status(404).json({ error: "Historical move not found" });
+      }
+
+      // Check if actualClose is within expected range
+      const withinRange = actualClose >= move.expectedLow && actualClose <= move.expectedHigh ? 1 : 0;
+
+      const result = await storage.updateHistoricalDailyMoves(req.params.id, {
+        actualClose,
+        withinRange,
+      });
+
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to update actual close" });
