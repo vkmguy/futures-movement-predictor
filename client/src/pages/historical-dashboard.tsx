@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, RefreshCw, TrendingUp, TrendingDown, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Download, RefreshCw, TrendingUp, TrendingDown, CheckCircle2, XCircle, Loader2, RefreshCcw } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { HistoricalDailyExpectedMoves, FuturesContract } from "@shared/schema";
 
@@ -34,24 +34,37 @@ export default function HistoricalDashboard() {
   const { data: historicalMoves = [], isLoading } = useQuery<HistoricalDailyExpectedMoves[]>({
     queryKey: selectedContract === "ALL" 
       ? ["/api/historical-daily-moves"]
-      : ["/api/historical-daily-moves", selectedContract],
+      : ["/api/historical-daily-moves", encodeURIComponent(selectedContract)],
   });
 
   // Collect daily data mutation
   const collectDataMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest<{ message: string; data: HistoricalDailyExpectedMoves[] }>(
-        "/api/collect-daily-data",
-        { method: "POST", body: {} }
-      );
+      const res = await apiRequest("POST", "/api/collect-daily-data", {});
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/historical-daily-moves"] });
     },
   });
 
+  // Sync Yahoo Finance mutation
+  const syncYahooMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/sync-yahoo-finance", {});
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+    },
+  });
+
   const handleCollectData = () => {
     collectDataMutation.mutate();
+  };
+
+  const handleSyncYahoo = () => {
+    syncYahooMutation.mutate();
   };
 
   const handleExport = () => {
@@ -131,6 +144,21 @@ export default function HistoricalDashboard() {
         </div>
         
         <div className="flex gap-2">
+          <Button
+            onClick={handleSyncYahoo}
+            disabled={syncYahooMutation.isPending}
+            variant="secondary"
+            data-testid="button-sync-yahoo"
+            className="gap-2"
+          >
+            {syncYahooMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="h-4 w-4" />
+            )}
+            Sync Yahoo Finance
+          </Button>
+          
           <Button
             onClick={handleCollectData}
             disabled={collectDataMutation.isPending}

@@ -7,6 +7,7 @@ import { calculateVolatility } from "./volatility-models";
 import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek, getWeekStartDate } from "./weekly-calculator";
 import { getMarketStatus } from "./market-hours";
 import { getLastTradedPrice, getAllLastTradedPrices } from "./yahoo-finance";
+import { runNightlyCalculation } from "./nightly-scheduler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get market status
@@ -379,8 +380,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get historical daily moves by symbol
   app.get("/api/historical-daily-moves/:symbol", async (req, res) => {
     try {
+      const symbol = decodeURIComponent(req.params.symbol);
+      
+      // Handle "ALL" as a special case to get all moves
+      if (symbol === "ALL") {
+        const moves = await storage.getAllHistoricalDailyMoves();
+        res.json(moves);
+        return;
+      }
+      
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
-      const moves = await storage.getHistoricalDailyMovesBySymbol(req.params.symbol, limit);
+      const moves = await storage.getHistoricalDailyMovesBySymbol(symbol, limit);
       res.json(moves);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch historical daily moves" });
@@ -465,6 +475,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to update actual close" });
+    }
+  });
+
+  // Sync all contracts with Yahoo Finance data
+  app.post("/api/sync-yahoo-finance", async (req, res) => {
+    try {
+      const quotes = await getAllLastTradedPrices();
+      const updatedContracts = [];
+
+      for (const quote of quotes) {
+        const contract = await storage.getContractBySymbol(quote.symbol);
+        if (!contract) {
+          console.error(`Contract not found: ${quote.symbol}`);
+          continue;
+        }
+
+        const updated = await storage.updateContract(quote.symbol, {
+          currentPrice: quote.regularMarketPrice,
+          previousClose: quote.regularMarketPreviousClose,
+          dailyChange: quote.regularMarketChange,
+          dailyChangePercent: quote.regularMarketChangePercent,
+        });
+
+        if (updated) {
+          updatedContracts.push(updated);
+        }
+      }
+
+      res.status(200).json({
+        message: `Synced ${updatedContracts.length} contracts with Yahoo Finance`,
+        data: updatedContracts,
+      });
+    } catch (error) {
+      console.error("Error syncing Yahoo Finance data:", error);
+      res.status(500).json({ error: "Failed to sync Yahoo Finance data" });
+    }
+  });
+
+  // Manual trigger for nightly calculation (for testing)
+  app.post("/api/run-nightly-calculation", async (req, res) => {
+    try {
+      const results = await runNightlyCalculation();
+      res.status(200).json({
+        message: "Nightly calculation completed successfully",
+        data: results,
+      });
+    } catch (error) {
+      console.error("Error running nightly calculation:", error);
+      res.status(500).json({ error: "Failed to run nightly calculation" });
     }
   });
 

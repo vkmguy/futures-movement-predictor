@@ -18,6 +18,7 @@ import Predictions from "@/pages/predictions";
 import Backtesting from "@/pages/backtesting";
 import Alerts from "@/pages/alerts";
 import WeeklyTracker from "@/pages/weekly-tracker";
+import HistoricalDashboard from "@/pages/historical-dashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/backtesting" component={Backtesting} />
       <Route path="/alerts" component={Alerts} />
       <Route path="/weekly-tracker" component={WeeklyTracker} />
+      <Route path="/historical" component={HistoricalDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
