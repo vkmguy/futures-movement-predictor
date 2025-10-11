@@ -72,6 +72,12 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
   - Daily maintenance break handling (5-6 PM ET)
   - Dynamic UI status indicator (Open/Closed with appropriate styling)
   - WebSocket simulator pauses during closed hours
+- **WebSocket Connection Control**:
+  - Manual toggle button to connect/disconnect live market data
+  - Connection status indicator (Wifi icon with visual feedback)
+  - Saves user preference in localStorage (browser-safe)
+  - Reduces network usage when app not actively monitored
+  - Tooltip shows connection state and toggle action
 
 ## Key Features
 1. **Real-time Contract Monitoring**: Live prices, daily changes, volume, and open interest
