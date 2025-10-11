@@ -37,12 +37,19 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
 - **Navigation**: Sidebar with market overview and page links
 
 ## Recent Changes (October 11, 2025)
-- Initial implementation of complete futures prediction platform
-- Defined all data models for contracts, prices, and predictions
-- Built comprehensive frontend with Dashboard, Analytics, and Predictions pages
-- Implemented backend API with volatility calculations
-- Fixed sidebar navigation to show market overview instead of broken links
-- Tested core functionality with end-to-end tests
+### Core Platform (Initial Implementation)
+- Complete MVP with Dashboard, Analytics, Predictions pages
+- Data models for contracts, prices, and predictions
+- Backend API with volatility calculations (σ_daily = σ_weekly / √5)
+- Sidebar navigation with market overview
+- End-to-end testing of core features
+
+### New Features (Latest Updates)
+- **Data Export System**: CSV/JSON export for contracts, predictions, and historical data
+- **Backtesting Module**: Accuracy tracking with historical comparison and performance metrics
+- **Price Alerts**: Create/manage alerts for price targets and movement thresholds
+- **Live Market Data**: WebSocket-based real-time price updates with market simulator
+- **Advanced Volatility Models**: GARCH(1,1) and EWMA models with UI selector
 
 ## Key Features
 1. **Real-time Contract Monitoring**: Live prices, daily changes, volume, and open interest

@@ -1,20 +1,74 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TrendingUp, TrendingDown, Minus, Activity } from "lucide-react";
 import { ExportMenu } from "@/components/export-menu";
 import { exportToCSV, exportToJSON, preparePredictionsForExport } from "@/lib/export-utils";
-import type { DailyPrediction } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { DailyPrediction, FuturesContract } from "@shared/schema";
 
 export default function Predictions() {
+  const [volatilityModel, setVolatilityModel] = useState<string>("standard");
+  
   const { data: predictions, isLoading } = useQuery<DailyPrediction[]>({
     queryKey: ['/api/predictions', 'ALL'],
   });
 
-  if (isLoading) {
+  const { data: contracts } = useQuery<FuturesContract[]>({
+    queryKey: ['/api/contracts'],
+  });
+
+  const regeneratePredictionsMutation = useMutation({
+    mutationFn: async (model: string) => {
+      if (!contracts) return;
+      
+      const promises = contracts.map(contract => 
+        apiRequest('POST', '/api/generate-prediction', {
+          contractSymbol: contract.symbol,
+          currentPrice: contract.currentPrice,
+          weeklyVolatility: contract.weeklyVolatility,
+          openInterestChange: contract.openInterestChange,
+          model: model,
+          recentPriceChange: contract.dailyChangePercent,
+        })
+      );
+      
+      return await Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
+    },
+  });
+
+  // Regenerate predictions when volatility model changes
+  useEffect(() => {
+    if (contracts && contracts.length > 0) {
+      regeneratePredictionsMutation.mutate(volatilityModel);
+    }
+  }, [volatilityModel]);
+
+  if (isLoading || regeneratePredictionsMutation.isPending) {
     return (
       <div className="space-y-6 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Movement Predictions</h1>
+            <p className="text-muted-foreground mt-1">
+              {regeneratePredictionsMutation.isPending 
+                ? `Calculating predictions using ${volatilityModel.toUpperCase()} model...`
+                : "Loading predictions..."}
+            </p>
+          </div>
+        </div>
         <Skeleton className="h-[200px]" />
       </div>
     );
@@ -59,11 +113,26 @@ export default function Predictions() {
             Daily expected price ranges based on volatility analysis
           </p>
         </div>
-        <ExportMenu 
-          onExportCSV={handleExportCSV} 
-          onExportJSON={handleExportJSON}
-          disabled={!predictions || predictions.length === 0}
-        />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <Select value={volatilityModel} onValueChange={setVolatilityModel}>
+              <SelectTrigger className="w-[160px]" data-testid="select-volatility-model">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="standard">Standard (√5)</SelectItem>
+                <SelectItem value="garch">GARCH(1,1)</SelectItem>
+                <SelectItem value="ewma">EWMA</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <ExportMenu 
+            onExportCSV={handleExportCSV} 
+            onExportJSON={handleExportJSON}
+            disabled={!predictions || predictions.length === 0}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -86,9 +155,14 @@ export default function Predictions() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={prediction.trend === "bullish" ? "default" : prediction.trend === "bearish" ? "destructive" : "secondary"} className="capitalize">
-                    {prediction.trend}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono">
+                      {volatilityModel === 'standard' ? '√5' : volatilityModel.toUpperCase()}
+                    </Badge>
+                    <Badge variant={prediction.trend === "bullish" ? "default" : prediction.trend === "bearish" ? "destructive" : "secondary"} className="capitalize">
+                      {prediction.trend}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

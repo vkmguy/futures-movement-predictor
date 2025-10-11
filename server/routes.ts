@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema } from "@shared/schema";
+import { setupMarketSimulator } from "./market-simulator";
+import { calculateVolatility } from "./volatility-models";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all futures contracts
@@ -143,14 +145,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate prediction based on current price and volatility
   app.post("/api/generate-prediction", async (req, res) => {
     try {
-      const { contractSymbol, currentPrice, weeklyVolatility, openInterestChange } = req.body;
+      const { contractSymbol, currentPrice, weeklyVolatility, openInterestChange, model = 'standard', recentPriceChange } = req.body;
       
       if (!contractSymbol || typeof currentPrice !== 'number' || typeof weeklyVolatility !== 'number') {
         return res.status(400).json({ error: "Invalid input parameters" });
       }
 
-      const dailyVolatility = weeklyVolatility / Math.sqrt(5);
-      const dailyMove = currentPrice * dailyVolatility;
+      // Use advanced volatility model
+      const volResult = calculateVolatility(
+        model as 'standard' | 'garch' | 'ewma',
+        weeklyVolatility,
+        recentPriceChange,
+      );
+
+      const dailyMove = currentPrice * volResult.dailyVolatility;
       
       const oiChange = openInterestChange || 0;
       const trend = oiChange > 0.02 ? "bullish" : oiChange < -0.02 ? "bearish" : "neutral";
@@ -160,16 +168,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentPrice,
         predictedMin: currentPrice - dailyMove,
         predictedMax: currentPrice + dailyMove,
-        dailyVolatility,
-        weeklyVolatility,
-        confidence: 0.70 + Math.random() * 0.25,
+        dailyVolatility: volResult.dailyVolatility,
+        weeklyVolatility: volResult.weeklyVolatility || weeklyVolatility,
+        confidence: volResult.confidence,
         openInterestChange: oiChange,
         trend,
       });
 
-      res.status(201).json(prediction);
+      res.status(201).json({ prediction, volResult });
     } catch (error) {
       res.status(500).json({ error: "Failed to generate prediction" });
+    }
+  });
+
+  // Calculate volatility using advanced models
+  app.post("/api/volatility/calculate", async (req, res) => {
+    try {
+      const { weeklyVolatility, model = 'standard', recentPriceChange, previousVolatility } = req.body;
+      
+      if (typeof weeklyVolatility !== 'number') {
+        return res.status(400).json({ error: "weeklyVolatility must be a number" });
+      }
+
+      const result = calculateVolatility(
+        model as 'standard' | 'garch' | 'ewma',
+        weeklyVolatility,
+        recentPriceChange,
+        previousVolatility
+      );
+
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to calculate volatility" });
     }
   });
 
@@ -227,5 +257,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Setup WebSocket market simulator for live data
+  setupMarketSimulator(httpServer);
+  
   return httpServer;
 }
