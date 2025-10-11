@@ -58,8 +58,8 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
   - Real-time status badges show if actual closes fall within/above/below expected ranges
   - Updates automatically when volatility models change while maintaining historical data integrity
 - **Realistic E-mini Futures Prices**: 
-  - Updated all contracts to 2025 market price levels
-  - /NQ (E-mini Nasdaq-100): ~20,845
+  - Updated all contracts to current market closing prices
+  - /NQ (E-mini Nasdaq-100): 24,726.75
   - /ES (E-mini S&P 500): ~5,787
   - /YM (E-mini Dow Jones): ~43,542
 - **Additional Futures Contracts**:
