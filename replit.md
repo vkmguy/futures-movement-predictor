@@ -20,14 +20,19 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
 - **FuturesContract**: Current prices, daily changes, volume, open interest, volatility metrics
 - **HistoricalPrice**: OHLC data for price history charts
 - **DailyPrediction**: Expected min/max ranges, confidence levels, trend indicators
+- **HistoricalDailyExpectedMoves**: Persistent storage of daily expected moves with Yahoo Finance prices
+- **WeeklyExpectedMoves**: Monday-Friday cumulative tracking with √n scaling
+- **PriceAlert**: User-defined price targets and movement thresholds
 
 ### Backend (`server/`)
-- **Storage**: In-memory database with mock futures data for /NQ, /ES, /YM
+- **Storage**: PostgreSQL database (Drizzle ORM) + In-memory for runtime data
+- **Yahoo Finance Service**: Daily closing price data via yahoo-finance2 package
+- **Nightly Scheduler**: Automated market close calculations (5:30 PM ET)
 - **API Routes**: RESTful endpoints for contracts, predictions, and historical data
 - **Volatility Engine**: Implements σ_daily = σ_weekly / √5 conversion formula
 
 ### Frontend (`client/src/`)
-- **Pages**: Dashboard (`/`), Analytics (`/analytics`), Predictions (`/predictions`)
+- **Pages**: Dashboard (`/`), Analytics (`/analytics`), Predictions (`/predictions`), Backtesting (`/backtesting`), Alerts (`/alerts`), Weekly Tracker (`/weekly-tracker`), Historical (`/historical`)
 - **Components**: 
   - ContractCard: Live price display with changes and volume
   - VolatilityCard: Weekly/daily volatility analysis
@@ -45,6 +50,25 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
 - End-to-end testing of core features
 
 ### New Features (Latest Updates)
+- **Yahoo Finance Integration** ✅:
+  - Free daily closing price data via yahoo-finance2 package
+  - Automatic price synchronization for all 6 futures contracts
+  - Real market data without API costs or subscriptions
+  - Supports /NQ, /ES, /YM, /RTY, /GC, /CL futures symbols
+- **Nightly Scheduler** ✅:
+  - Automated daily calculations after market close (5:30 PM ET)
+  - Syncs Yahoo Finance prices and updates contract data
+  - Calculates daily expected moves using σ_daily = σ_weekly / √5
+  - Stores historical data in PostgreSQL database
+  - Runs automatically Monday-Friday, skips weekends
+- **Historical Dashboard** ✅ (route: `/historical`):
+  - Displays accumulated daily expected moves (never deleted)
+  - Filter by contract or view all contracts
+  - Export data to CSV format
+  - Manual sync Yahoo Finance button for testing
+  - Manual collect daily data button for testing
+  - Stats cards: Total records, Accuracy rate, Pending/Completed
+  - Data includes: Date, Contract, Last Price, Expected High/Low, Actual Close, Status, Daily Vol%
 - **Data Export System**: CSV/JSON export for contracts, predictions, and historical data
 - **Backtesting Module**: Accuracy tracking with historical comparison and performance metrics
 - **Price Alerts**: Create/manage alerts for price targets and movement thresholds
@@ -90,8 +114,9 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
 ## Technical Stack
 - **Frontend**: React, Wouter (routing), TanStack Query, Tailwind CSS, Shadcn UI
 - **Backend**: Express.js, Node.js, TypeScript
+- **Database**: PostgreSQL with Drizzle ORM for persistent storage
+- **Market Data**: Yahoo Finance 2 for free daily closing prices
 - **Charts**: Recharts for financial data visualization
-- **Storage**: In-memory (MemStorage) - ready for PostgreSQL upgrade
 - **Validation**: Zod schemas with Drizzle integration
 
 ## User Workflow
