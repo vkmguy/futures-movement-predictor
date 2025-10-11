@@ -10,6 +10,9 @@ const contracts = [
   { value: "/NQ", label: "/NQ - Nasdaq 100" },
   { value: "/ES", label: "/ES - S&P 500" },
   { value: "/YM", label: "/YM - Dow Jones" },
+  { value: "/RTY", label: "/RTY - Russell 2000" },
+  { value: "/GC", label: "/GC - Gold" },
+  { value: "/CL", label: "/CL - Crude Oil" },
 ];
 
 export function ContractSelector({ value, onValueChange }: ContractSelectorProps) {
