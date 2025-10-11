@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useMarketData } from "@/hooks/use-market-data";
+import { useMarketStatus } from "@/hooks/use-market-status";
 import Dashboard from "@/pages/dashboard";
 import Analytics from "@/pages/analytics";
 import Predictions from "@/pages/predictions";
@@ -34,6 +35,9 @@ function AppContent() {
   // Connect to live market data WebSocket
   useMarketData();
   
+  // Get market status
+  const { data: marketStatus } = useMarketStatus();
+  
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
@@ -52,9 +56,23 @@ function AppContent() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Market Status:</span>
                     <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                      <span className="text-sm text-muted-foreground">Live</span>
+                      <span 
+                        className={`h-2 w-2 rounded-full ${
+                          marketStatus?.isOpen 
+                            ? 'bg-primary animate-pulse' 
+                            : 'bg-destructive'
+                        }`}
+                        data-testid="indicator-market-status"
+                      />
+                      <span className="text-sm text-muted-foreground" data-testid="text-market-status">
+                        {marketStatus?.isOpen ? 'Open' : 'Closed'}
+                      </span>
                     </span>
+                    {marketStatus?.message && (
+                      <span className="text-xs text-muted-foreground ml-1">
+                        ({marketStatus.message})
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

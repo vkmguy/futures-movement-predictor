@@ -5,8 +5,19 @@ import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPr
 import { setupMarketSimulator } from "./market-simulator";
 import { calculateVolatility } from "./volatility-models";
 import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek, getWeekStartDate } from "./weekly-calculator";
+import { getMarketStatus } from "./market-hours";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Get market status
+  app.get("/api/market/status", async (req, res) => {
+    try {
+      const status = getMarketStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch market status" });
+    }
+  });
+
   // Get all futures contracts
   app.get("/api/contracts", async (req, res) => {
     try {

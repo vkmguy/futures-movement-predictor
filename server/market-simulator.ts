@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
 import { storage } from './storage';
+import { getMarketStatus } from './market-hours';
 
 interface MarketUpdate {
   symbol: string;
@@ -21,6 +22,13 @@ export function setupMarketSimulator(httpServer: Server) {
   
   // Simulate market price movements
   const simulateMarketUpdate = async () => {
+    // Check if markets are open before broadcasting updates
+    const marketStatus = getMarketStatus();
+    if (!marketStatus.isOpen) {
+      // Don't broadcast updates when markets are closed
+      return;
+    }
+
     const contracts = await storage.getAllContracts();
     
     for (const contract of contracts) {
