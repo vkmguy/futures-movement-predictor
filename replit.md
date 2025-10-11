@@ -50,6 +50,7 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
 - **Price Alerts**: Create/manage alerts for price targets and movement thresholds
 - **Live Market Data**: WebSocket-based real-time price updates with market simulator
 - **Advanced Volatility Models**: GARCH(1,1) and EWMA models with UI selector
+- **Weekly Expected Moves Tracker**: Monday-Friday price movement tracking based on IV, updates daily with volatility changes
 
 ## Key Features
 1. **Real-time Contract Monitoring**: Live prices, daily changes, volume, and open interest

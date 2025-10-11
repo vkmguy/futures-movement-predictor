@@ -84,3 +84,48 @@ export const insertPriceAlertSchema = createInsertSchema(priceAlerts).omit({
 
 export type InsertPriceAlert = z.infer<typeof insertPriceAlertSchema>;
 export type PriceAlert = typeof priceAlerts.$inferSelect;
+
+export const weeklyExpectedMoves = pgTable("weekly_expected_moves", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractSymbol: text("contract_symbol").notNull(),
+  weekStartDate: timestamp("week_start_date").notNull(),
+  currentDayOfWeek: text("current_day_of_week").notNull(), // "monday", "tuesday", etc.
+  
+  // Opening price for the week (Monday open)
+  weekOpenPrice: real("week_open_price").notNull(),
+  
+  // Daily expected moves based on IV
+  mondayExpectedHigh: real("monday_expected_high").notNull(),
+  mondayExpectedLow: real("monday_expected_low").notNull(),
+  mondayActualClose: real("monday_actual_close"),
+  
+  tuesdayExpectedHigh: real("tuesday_expected_high").notNull(),
+  tuesdayExpectedLow: real("tuesday_expected_low").notNull(),
+  tuesdayActualClose: real("tuesday_actual_close"),
+  
+  wednesdayExpectedHigh: real("wednesday_expected_high").notNull(),
+  wednesdayExpectedLow: real("wednesday_expected_low").notNull(),
+  wednesdayActualClose: real("wednesday_actual_close"),
+  
+  thursdayExpectedHigh: real("thursday_expected_high").notNull(),
+  thursdayExpectedLow: real("thursday_expected_low").notNull(),
+  thursdayActualClose: real("thursday_actual_close"),
+  
+  fridayExpectedHigh: real("friday_expected_high").notNull(),
+  fridayExpectedLow: real("friday_expected_low").notNull(),
+  fridayActualClose: real("friday_actual_close"),
+  
+  // Weekly IV and volatility
+  impliedVolatility: real("implied_volatility").notNull(),
+  weeklyVolatility: real("weekly_volatility").notNull(),
+  
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertWeeklyExpectedMovesSchema = createInsertSchema(weeklyExpectedMoves).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertWeeklyExpectedMoves = z.infer<typeof insertWeeklyExpectedMovesSchema>;
+export type WeeklyExpectedMoves = typeof weeklyExpectedMoves.$inferSelect;

@@ -6,7 +6,9 @@ import {
   type DailyPrediction,
   type InsertDailyPrediction,
   type PriceAlert,
-  type InsertPriceAlert
+  type InsertPriceAlert,
+  type WeeklyExpectedMoves,
+  type InsertWeeklyExpectedMoves
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -32,6 +34,12 @@ export interface IStorage {
   createAlert(alert: InsertPriceAlert): Promise<PriceAlert>;
   updateAlert(id: string, update: Partial<PriceAlert>): Promise<PriceAlert | undefined>;
   deleteAlert(id: string): Promise<boolean>;
+
+  // Weekly Expected Moves
+  getWeeklyMoves(contractSymbol: string): Promise<WeeklyExpectedMoves | undefined>;
+  getAllWeeklyMoves(): Promise<WeeklyExpectedMoves[]>;
+  createWeeklyMoves(moves: InsertWeeklyExpectedMoves): Promise<WeeklyExpectedMoves>;
+  updateWeeklyMoves(contractSymbol: string, update: Partial<WeeklyExpectedMoves>): Promise<WeeklyExpectedMoves | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -39,12 +47,14 @@ export class MemStorage implements IStorage {
   private historicalPrices: Map<string, HistoricalPrice[]>;
   private predictions: Map<string, DailyPrediction>;
   private alerts: Map<string, PriceAlert>;
+  private weeklyMoves: Map<string, WeeklyExpectedMoves>;
 
   constructor() {
     this.contracts = new Map();
     this.historicalPrices = new Map();
     this.predictions = new Map();
     this.alerts = new Map();
+    this.weeklyMoves = new Map();
     this.initializeMockData();
   }
 
@@ -234,6 +244,8 @@ export class MemStorage implements IStorage {
       id,
       isActive: 1,
       triggered: 0,
+      targetPrice: insertAlert.targetPrice ?? null,
+      percentage: insertAlert.percentage ?? null,
       createdAt: new Date(),
     };
     this.alerts.set(id, alert);
@@ -254,6 +266,43 @@ export class MemStorage implements IStorage {
 
   async deleteAlert(id: string): Promise<boolean> {
     return this.alerts.delete(id);
+  }
+
+  async getWeeklyMoves(contractSymbol: string): Promise<WeeklyExpectedMoves | undefined> {
+    return this.weeklyMoves.get(contractSymbol);
+  }
+
+  async getAllWeeklyMoves(): Promise<WeeklyExpectedMoves[]> {
+    return Array.from(this.weeklyMoves.values());
+  }
+
+  async createWeeklyMoves(insertMoves: InsertWeeklyExpectedMoves): Promise<WeeklyExpectedMoves> {
+    const id = randomUUID();
+    const moves: WeeklyExpectedMoves = {
+      ...insertMoves,
+      id,
+      mondayActualClose: insertMoves.mondayActualClose ?? null,
+      tuesdayActualClose: insertMoves.tuesdayActualClose ?? null,
+      wednesdayActualClose: insertMoves.wednesdayActualClose ?? null,
+      thursdayActualClose: insertMoves.thursdayActualClose ?? null,
+      fridayActualClose: insertMoves.fridayActualClose ?? null,
+      updatedAt: new Date(),
+    };
+    this.weeklyMoves.set(moves.contractSymbol, moves);
+    return moves;
+  }
+
+  async updateWeeklyMoves(contractSymbol: string, update: Partial<WeeklyExpectedMoves>): Promise<WeeklyExpectedMoves | undefined> {
+    const existing = this.weeklyMoves.get(contractSymbol);
+    if (!existing) return undefined;
+
+    const updated: WeeklyExpectedMoves = {
+      ...existing,
+      ...update,
+      updatedAt: new Date(),
+    };
+    this.weeklyMoves.set(contractSymbol, updated);
+    return updated;
   }
 }
 

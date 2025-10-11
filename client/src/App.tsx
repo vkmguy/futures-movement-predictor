@@ -13,6 +13,7 @@ import Analytics from "@/pages/analytics";
 import Predictions from "@/pages/predictions";
 import Backtesting from "@/pages/backtesting";
 import Alerts from "@/pages/alerts";
+import WeeklyTracker from "@/pages/weekly-tracker";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/predictions" component={Predictions} />
       <Route path="/backtesting" component={Backtesting} />
       <Route path="/alerts" component={Alerts} />
+      <Route path="/weekly-tracker" component={WeeklyTracker} />
       <Route component={NotFound} />
     </Switch>
   );

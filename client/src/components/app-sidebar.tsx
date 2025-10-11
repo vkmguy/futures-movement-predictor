@@ -1,4 +1,4 @@
-import { BarChart3, Home, LineChart, TrendingUp, Target, Bell } from "lucide-react";
+import { BarChart3, Home, LineChart, TrendingUp, Target, Bell, CalendarDays } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -40,6 +40,11 @@ const menuItems = [
     title: "Alerts",
     url: "/alerts",
     icon: Bell,
+  },
+  {
+    title: "Weekly Tracker",
+    url: "/weekly-tracker",
+    icon: CalendarDays,
   },
 ];
 

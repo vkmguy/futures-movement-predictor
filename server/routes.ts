@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema } from "@shared/schema";
+import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema, insertWeeklyExpectedMovesSchema } from "@shared/schema";
 import { setupMarketSimulator } from "./market-simulator";
 import { calculateVolatility } from "./volatility-models";
+import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek, getWeekStartDate } from "./weekly-calculator";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all futures contracts
@@ -253,6 +254,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete alert" });
+    }
+  });
+
+  // Weekly Expected Moves routes
+  app.get("/api/weekly-moves", async (req, res) => {
+    try {
+      const moves = await storage.getAllWeeklyMoves();
+      res.json(moves);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch weekly moves" });
+    }
+  });
+
+  app.get("/api/weekly-moves/:symbol", async (req, res) => {
+    try {
+      const moves = await storage.getWeeklyMoves(req.params.symbol);
+      if (!moves) {
+        return res.status(404).json({ error: "Weekly moves not found" });
+      }
+      res.json(moves);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch weekly moves" });
+    }
+  });
+
+  app.post("/api/weekly-moves/generate", async (req, res) => {
+    try {
+      const { contractSymbol, currentPrice, weeklyVolatility } = req.body;
+      
+      if (!contractSymbol || typeof currentPrice !== 'number' || typeof weeklyVolatility !== 'number') {
+        return res.status(400).json({ error: "Invalid input parameters" });
+      }
+
+      const weekStartDate = getWeekStartDate();
+      const currentDay = getCurrentDayOfWeek();
+
+      // Check if weekly moves already exist for this contract
+      const existing = await storage.getWeeklyMoves(contractSymbol);
+      
+      // Use existing week open price if available, otherwise use current price
+      const weekOpenPrice = existing?.weekOpenPrice ?? currentPrice;
+      
+      const calculatedMoves = calculateWeeklyExpectedMoves(
+        contractSymbol,
+        weekOpenPrice,
+        weeklyVolatility,
+        weekStartDate,
+        currentDay
+      );
+
+      let result;
+      
+      if (existing) {
+        // Update existing moves, preserving the original week open price
+        result = await storage.updateWeeklyMoves(contractSymbol, {
+          ...calculatedMoves,
+          weekOpenPrice: existing.weekOpenPrice, // Preserve original week open
+          // Preserve actual closes that have been recorded
+          mondayActualClose: existing.mondayActualClose,
+          tuesdayActualClose: existing.tuesdayActualClose,
+          wednesdayActualClose: existing.wednesdayActualClose,
+          thursdayActualClose: existing.thursdayActualClose,
+          fridayActualClose: existing.fridayActualClose,
+        });
+      } else {
+        // Create new moves
+        result = await storage.createWeeklyMoves(calculatedMoves);
+      }
+
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate weekly moves" });
+    }
+  });
+
+  app.patch("/api/weekly-moves/:symbol/update-actual", async (req, res) => {
+    try {
+      const { day, actualClose } = req.body;
+      
+      if (!day || typeof actualClose !== 'number') {
+        return res.status(400).json({ error: "Invalid input parameters" });
+      }
+
+      const existing = await storage.getWeeklyMoves(req.params.symbol);
+      if (!existing) {
+        return res.status(404).json({ error: "Weekly moves not found" });
+      }
+
+      const updateKey = `${day}ActualClose` as keyof typeof existing;
+      const update = { [updateKey]: actualClose };
+
+      const result = await storage.updateWeeklyMoves(req.params.symbol, update);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update actual close" });
     }
   });
 
