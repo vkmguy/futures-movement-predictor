@@ -57,6 +57,21 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
   - Daily expected ranges expand progressively: Mon (√1), Tue (√2), Wed (√3), Thu (√4), Fri (√5 = full weekly)
   - Real-time status badges show if actual closes fall within/above/below expected ranges
   - Updates automatically when volatility models change while maintaining historical data integrity
+- **Realistic E-mini Futures Prices**: 
+  - Updated all contracts to 2025 market price levels
+  - /NQ (E-mini Nasdaq-100): ~20,845
+  - /ES (E-mini S&P 500): ~5,787
+  - /YM (E-mini Dow Jones): ~43,542
+- **Additional Futures Contracts**:
+  - /RTY (E-mini Russell 2000): ~2,234
+  - /GC (Gold Futures): ~2,685
+  - /CL (Crude Oil Futures): ~77.45
+- **Market Hours Detection**:
+  - Real-time CME futures market hours tracking
+  - Weekend detection (Sat + Sun before 6PM ET + Fri after 5PM ET)
+  - Daily maintenance break handling (5-6 PM ET)
+  - Dynamic UI status indicator (Open/Closed with appropriate styling)
+  - WebSocket simulator pauses during closed hours
 
 ## Key Features
 1. **Real-time Contract Monitoring**: Live prices, daily changes, volume, and open interest
