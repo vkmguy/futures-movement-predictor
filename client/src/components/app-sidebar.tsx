@@ -1,4 +1,4 @@
-import { BarChart3, Home, LineChart, TrendingUp } from "lucide-react";
+import { BarChart3, Home, LineChart, TrendingUp, Target, Bell } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -30,6 +30,16 @@ const menuItems = [
     title: "Predictions",
     url: "/predictions",
     icon: TrendingUp,
+  },
+  {
+    title: "Backtesting",
+    url: "/backtesting",
+    icon: Target,
+  },
+  {
+    title: "Alerts",
+    url: "/alerts",
+    icon: Bell,
   },
 ];
 

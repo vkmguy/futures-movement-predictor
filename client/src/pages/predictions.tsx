@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ExportMenu } from "@/components/export-menu";
+import { exportToCSV, exportToJSON, preparePredictionsForExport } from "@/lib/export-utils";
 import type { DailyPrediction } from "@shared/schema";
 
 export default function Predictions() {
@@ -34,13 +36,34 @@ export default function Predictions() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (predictions && predictions.length > 0) {
+      const data = preparePredictionsForExport(predictions);
+      exportToCSV(data, `predictions-${new Date().toISOString().split('T')[0]}.csv`);
+    }
+  };
+
+  const handleExportJSON = () => {
+    if (predictions && predictions.length > 0) {
+      const data = preparePredictionsForExport(predictions);
+      exportToJSON(data, `predictions-${new Date().toISOString().split('T')[0]}.json`);
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-page-title">Movement Predictions</h1>
-        <p className="text-muted-foreground mt-1">
-          Daily expected price ranges based on volatility analysis
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">Movement Predictions</h1>
+          <p className="text-muted-foreground mt-1">
+            Daily expected price ranges based on volatility analysis
+          </p>
+        </div>
+        <ExportMenu 
+          onExportCSV={handleExportCSV} 
+          onExportJSON={handleExportJSON}
+          disabled={!predictions || predictions.length === 0}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4">

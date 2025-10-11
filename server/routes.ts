@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema } from "@shared/schema";
+import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all futures contracts
@@ -170,6 +170,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(prediction);
     } catch (error) {
       res.status(500).json({ error: "Failed to generate prediction" });
+    }
+  });
+
+  // Alert routes
+  app.get("/api/alerts", async (req, res) => {
+    try {
+      const alerts = await storage.getAllAlerts();
+      res.json(alerts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch alerts" });
+    }
+  });
+
+  app.get("/api/alerts/active", async (req, res) => {
+    try {
+      const alerts = await storage.getActiveAlerts();
+      res.json(alerts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active alerts" });
+    }
+  });
+
+  app.post("/api/alerts", async (req, res) => {
+    try {
+      const validatedData = insertPriceAlertSchema.parse(req.body);
+      const alert = await storage.createAlert(validatedData);
+      res.status(201).json(alert);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid alert data" });
+    }
+  });
+
+  app.patch("/api/alerts/:id", async (req, res) => {
+    try {
+      const alert = await storage.updateAlert(req.params.id, req.body);
+      if (!alert) {
+        return res.status(404).json({ error: "Alert not found" });
+      }
+      res.json(alert);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update alert" });
+    }
+  });
+
+  app.delete("/api/alerts/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteAlert(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Alert not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete alert" });
     }
   });
 

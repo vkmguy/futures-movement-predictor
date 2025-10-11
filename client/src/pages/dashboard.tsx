@@ -5,9 +5,11 @@ import { VolatilityCard } from "@/components/volatility-card";
 import { PredictionCard } from "@/components/prediction-card";
 import { PriceChart } from "@/components/price-chart";
 import { ContractSelector } from "@/components/contract-selector";
+import { ExportMenu } from "@/components/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { exportToCSV, exportToJSON, prepareContractsForExport, preparePredictionsForExport, prepareHistoricalForExport } from "@/lib/export-utils";
 import type { FuturesContract, DailyPrediction, HistoricalPrice } from "@shared/schema";
 
 export default function Dashboard() {
@@ -58,6 +60,20 @@ export default function Dashboard() {
     );
   }
 
+  const handleExportCSV = () => {
+    if (filteredContracts && filteredContracts.length > 0) {
+      const data = prepareContractsForExport(filteredContracts);
+      exportToCSV(data, `futures-contracts-${selectedContract}-${new Date().toISOString().split('T')[0]}.csv`);
+    }
+  };
+
+  const handleExportJSON = () => {
+    if (filteredContracts && filteredContracts.length > 0) {
+      const data = prepareContractsForExport(filteredContracts);
+      exportToJSON(data, `futures-contracts-${selectedContract}-${new Date().toISOString().split('T')[0]}.json`);
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -67,7 +83,14 @@ export default function Dashboard() {
             Real-time price movements and daily predictions
           </p>
         </div>
-        <ContractSelector value={selectedContract} onValueChange={setSelectedContract} />
+        <div className="flex items-center gap-3">
+          <ContractSelector value={selectedContract} onValueChange={setSelectedContract} />
+          <ExportMenu 
+            onExportCSV={handleExportCSV} 
+            onExportJSON={handleExportJSON}
+            disabled={!contracts || contracts.length === 0}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

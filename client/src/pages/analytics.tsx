@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, Activity, DollarSign } from "lucide-react";
+import { ExportMenu } from "@/components/export-menu";
+import { exportToCSV, exportToJSON, prepareContractsForExport } from "@/lib/export-utils";
 import type { FuturesContract } from "@shared/schema";
 
 export default function Analytics() {
@@ -50,13 +52,34 @@ export default function Analytics() {
     },
   ];
 
+  const handleExportCSV = () => {
+    if (contracts && contracts.length > 0) {
+      const data = prepareContractsForExport(contracts);
+      exportToCSV(data, `analytics-${new Date().toISOString().split('T')[0]}.csv`);
+    }
+  };
+
+  const handleExportJSON = () => {
+    if (contracts && contracts.length > 0) {
+      const data = prepareContractsForExport(contracts);
+      exportToJSON(data, `analytics-${new Date().toISOString().split('T')[0]}.json`);
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-page-title">Analytics</h1>
-        <p className="text-muted-foreground mt-1">
-          Market statistics and volatility analysis
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">Analytics</h1>
+          <p className="text-muted-foreground mt-1">
+            Market statistics and volatility analysis
+          </p>
+        </div>
+        <ExportMenu 
+          onExportCSV={handleExportCSV} 
+          onExportJSON={handleExportJSON}
+          disabled={!contracts || contracts.length === 0}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

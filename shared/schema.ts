@@ -65,3 +65,22 @@ export type HistoricalPrice = typeof historicalPrices.$inferSelect;
 
 export type InsertDailyPrediction = z.infer<typeof insertDailyPredictionSchema>;
 export type DailyPrediction = typeof dailyPredictions.$inferSelect;
+
+export const priceAlerts = pgTable("price_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractSymbol: text("contract_symbol").notNull(),
+  alertType: text("alert_type").notNull(), // "price_above", "price_below", "movement_exceeded"
+  targetPrice: real("target_price"),
+  percentage: real("percentage"),
+  isActive: integer("is_active").notNull().default(1),
+  triggered: integer("triggered").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPriceAlertSchema = createInsertSchema(priceAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPriceAlert = z.infer<typeof insertPriceAlertSchema>;
+export type PriceAlert = typeof priceAlerts.$inferSelect;

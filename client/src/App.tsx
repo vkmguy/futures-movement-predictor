@@ -10,6 +10,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import Dashboard from "@/pages/dashboard";
 import Analytics from "@/pages/analytics";
 import Predictions from "@/pages/predictions";
+import Backtesting from "@/pages/backtesting";
+import Alerts from "@/pages/alerts";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/predictions" component={Predictions} />
+      <Route path="/backtesting" component={Backtesting} />
+      <Route path="/alerts" component={Alerts} />
       <Route component={NotFound} />
     </Switch>
   );

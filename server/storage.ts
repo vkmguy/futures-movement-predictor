@@ -4,7 +4,9 @@ import {
   type HistoricalPrice,
   type InsertHistoricalPrice,
   type DailyPrediction,
-  type InsertDailyPrediction
+  type InsertDailyPrediction,
+  type PriceAlert,
+  type InsertPriceAlert
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -23,17 +25,26 @@ export interface IStorage {
   getAllPredictions(): Promise<DailyPrediction[]>;
   getPredictionsBySymbol(symbol: string): Promise<DailyPrediction[]>;
   createPrediction(prediction: InsertDailyPrediction): Promise<DailyPrediction>;
+
+  // Price Alerts
+  getAllAlerts(): Promise<PriceAlert[]>;
+  getActiveAlerts(): Promise<PriceAlert[]>;
+  createAlert(alert: InsertPriceAlert): Promise<PriceAlert>;
+  updateAlert(id: string, update: Partial<PriceAlert>): Promise<PriceAlert | undefined>;
+  deleteAlert(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private contracts: Map<string, FuturesContract>;
   private historicalPrices: Map<string, HistoricalPrice[]>;
   private predictions: Map<string, DailyPrediction>;
+  private alerts: Map<string, PriceAlert>;
 
   constructor() {
     this.contracts = new Map();
     this.historicalPrices = new Map();
     this.predictions = new Map();
+    this.alerts = new Map();
     this.initializeMockData();
   }
 
@@ -206,6 +217,43 @@ export class MemStorage implements IStorage {
     };
     this.predictions.set(prediction.contractSymbol, prediction);
     return prediction;
+  }
+
+  async getAllAlerts(): Promise<PriceAlert[]> {
+    return Array.from(this.alerts.values());
+  }
+
+  async getActiveAlerts(): Promise<PriceAlert[]> {
+    return Array.from(this.alerts.values()).filter(alert => alert.isActive === 1 && alert.triggered === 0);
+  }
+
+  async createAlert(insertAlert: InsertPriceAlert): Promise<PriceAlert> {
+    const id = randomUUID();
+    const alert: PriceAlert = {
+      ...insertAlert,
+      id,
+      isActive: 1,
+      triggered: 0,
+      createdAt: new Date(),
+    };
+    this.alerts.set(id, alert);
+    return alert;
+  }
+
+  async updateAlert(id: string, update: Partial<PriceAlert>): Promise<PriceAlert | undefined> {
+    const existing = this.alerts.get(id);
+    if (!existing) return undefined;
+
+    const updated: PriceAlert = {
+      ...existing,
+      ...update,
+    };
+    this.alerts.set(id, updated);
+    return updated;
+  }
+
+  async deleteAlert(id: string): Promise<boolean> {
+    return this.alerts.delete(id);
   }
 }
 
