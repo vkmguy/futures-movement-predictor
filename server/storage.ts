@@ -8,7 +8,9 @@ import {
   type PriceAlert,
   type InsertPriceAlert,
   type WeeklyExpectedMoves,
-  type InsertWeeklyExpectedMoves
+  type InsertWeeklyExpectedMoves,
+  type HistoricalDailyExpectedMoves,
+  type InsertHistoricalDailyExpectedMoves
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -40,6 +42,12 @@ export interface IStorage {
   getAllWeeklyMoves(): Promise<WeeklyExpectedMoves[]>;
   createWeeklyMoves(moves: InsertWeeklyExpectedMoves): Promise<WeeklyExpectedMoves>;
   updateWeeklyMoves(contractSymbol: string, update: Partial<WeeklyExpectedMoves>): Promise<WeeklyExpectedMoves | undefined>;
+
+  // Historical Daily Expected Moves
+  getAllHistoricalDailyMoves(): Promise<HistoricalDailyExpectedMoves[]>;
+  getHistoricalDailyMovesBySymbol(contractSymbol: string, limit?: number): Promise<HistoricalDailyExpectedMoves[]>;
+  createHistoricalDailyMoves(moves: InsertHistoricalDailyExpectedMoves): Promise<HistoricalDailyExpectedMoves>;
+  updateHistoricalDailyMoves(id: string, update: Partial<HistoricalDailyExpectedMoves>): Promise<HistoricalDailyExpectedMoves | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -48,6 +56,7 @@ export class MemStorage implements IStorage {
   private predictions: Map<string, DailyPrediction>;
   private alerts: Map<string, PriceAlert>;
   private weeklyMoves: Map<string, WeeklyExpectedMoves>;
+  private historicalDailyMoves: Map<string, HistoricalDailyExpectedMoves[]>;
 
   constructor() {
     this.contracts = new Map();
@@ -55,6 +64,7 @@ export class MemStorage implements IStorage {
     this.predictions = new Map();
     this.alerts = new Map();
     this.weeklyMoves = new Map();
+    this.historicalDailyMoves = new Map();
     this.initializeMockData();
   }
 
@@ -339,6 +349,49 @@ export class MemStorage implements IStorage {
     };
     this.weeklyMoves.set(contractSymbol, updated);
     return updated;
+  }
+
+  async getAllHistoricalDailyMoves(): Promise<HistoricalDailyExpectedMoves[]> {
+    const allMoves: HistoricalDailyExpectedMoves[] = [];
+    for (const moves of Array.from(this.historicalDailyMoves.values())) {
+      allMoves.push(...moves);
+    }
+    return allMoves.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }
+
+  async getHistoricalDailyMovesBySymbol(contractSymbol: string, limit: number = 30): Promise<HistoricalDailyExpectedMoves[]> {
+    const moves = this.historicalDailyMoves.get(contractSymbol) || [];
+    return moves.slice(-limit).sort((a, b) => b.date.getTime() - a.date.getTime());
+  }
+
+  async createHistoricalDailyMoves(insertMoves: InsertHistoricalDailyExpectedMoves): Promise<HistoricalDailyExpectedMoves> {
+    const id = randomUUID();
+    const moves: HistoricalDailyExpectedMoves = {
+      ...insertMoves,
+      id,
+      actualClose: insertMoves.actualClose ?? null,
+      withinRange: insertMoves.withinRange ?? null,
+      createdAt: new Date(),
+    };
+    
+    const existing = this.historicalDailyMoves.get(insertMoves.contractSymbol) || [];
+    existing.push(moves);
+    this.historicalDailyMoves.set(insertMoves.contractSymbol, existing);
+    
+    return moves;
+  }
+
+  async updateHistoricalDailyMoves(id: string, update: Partial<HistoricalDailyExpectedMoves>): Promise<HistoricalDailyExpectedMoves | undefined> {
+    for (const [symbol, moves] of Array.from(this.historicalDailyMoves.entries())) {
+      const index = moves.findIndex((m: HistoricalDailyExpectedMoves) => m.id === id);
+      if (index !== -1) {
+        const updated = { ...moves[index], ...update };
+        moves[index] = updated;
+        this.historicalDailyMoves.set(symbol, moves);
+        return updated;
+      }
+    }
+    return undefined;
   }
 }
 

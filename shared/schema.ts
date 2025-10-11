@@ -129,3 +129,36 @@ export const insertWeeklyExpectedMovesSchema = createInsertSchema(weeklyExpected
 
 export type InsertWeeklyExpectedMoves = z.infer<typeof insertWeeklyExpectedMovesSchema>;
 export type WeeklyExpectedMoves = typeof weeklyExpectedMoves.$inferSelect;
+
+// Historical Daily Expected Moves - accumulates daily, never deleted
+export const historicalDailyExpectedMoves = pgTable("historical_daily_expected_moves", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractSymbol: text("contract_symbol").notNull(),
+  date: timestamp("date").notNull(), // Trading date
+  
+  // Yahoo Finance last traded price data
+  lastTradedPrice: real("last_traded_price").notNull(),
+  previousClose: real("previous_close").notNull(),
+  
+  // Volatility data
+  weeklyVolatility: real("weekly_volatility").notNull(),
+  dailyVolatility: real("daily_volatility").notNull(), // σ_daily = σ_weekly / √5
+  
+  // Expected move ranges
+  expectedHigh: real("expected_high").notNull(), // lastPrice + dailyVolatility
+  expectedLow: real("expected_low").notNull(), // lastPrice - dailyVolatility
+  
+  // Actual price for validation (filled at end of day)
+  actualClose: real("actual_close"),
+  withinRange: integer("within_range"), // 1 if actualClose within range, 0 if not, null if not yet closed
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertHistoricalDailyExpectedMovesSchema = createInsertSchema(historicalDailyExpectedMoves).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertHistoricalDailyExpectedMoves = z.infer<typeof insertHistoricalDailyExpectedMovesSchema>;
+export type HistoricalDailyExpectedMoves = typeof historicalDailyExpectedMoves.$inferSelect;
