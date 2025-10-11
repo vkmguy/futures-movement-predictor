@@ -1,149 +1,88 @@
-# Futures Price Movement Predictor
+# Futures Movement Predictor
 
 ## Overview
+A professional web-based application for predicting daily price movements of futures contracts (/NQ, /ES, /YM) based on weekly volatility analysis, latest prices, and open interest data.
 
-A professional web-based futures trading analytics platform that provides daily price movement predictions for major futures contracts (/NQ, /ES, /YM). The application calculates expected daily price ranges based on weekly volatility analysis and open interest data, designed with a focus on data clarity and rapid information scanning for traders.
+## Purpose
+Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ), S&P 500 (/ES), and Dow Jones (/YM) futures contracts using statistical volatility models.
 
-## User Preferences
+## Current State
+✅ **Fully Functional MVP** - All core features implemented and tested
+- Dashboard with real-time contract data and predictions
+- Analytics page with volatility comparison and performance charts
+- Predictions page with detailed movement forecasts
+- Dark/light theme support
+- Professional trading platform UI following design guidelines
 
-Preferred communication style: Simple, everyday language.
+## Project Architecture
 
-## System Architecture
+### Data Model (`shared/schema.ts`)
+- **FuturesContract**: Current prices, daily changes, volume, open interest, volatility metrics
+- **HistoricalPrice**: OHLC data for price history charts
+- **DailyPrediction**: Expected min/max ranges, confidence levels, trend indicators
 
-### Frontend Architecture
+### Backend (`server/`)
+- **Storage**: In-memory database with mock futures data for /NQ, /ES, /YM
+- **API Routes**: RESTful endpoints for contracts, predictions, and historical data
+- **Volatility Engine**: Implements σ_daily = σ_weekly / √5 conversion formula
 
-**Framework & Build System:**
-- React 18 with TypeScript for type safety and component-based UI
-- Vite as the build tool and development server for fast HMR and optimized production builds
-- Wouter for lightweight client-side routing (Dashboard, Analytics, Predictions pages)
+### Frontend (`client/src/`)
+- **Pages**: Dashboard (`/`), Analytics (`/analytics`), Predictions (`/predictions`)
+- **Components**: 
+  - ContractCard: Live price display with changes and volume
+  - VolatilityCard: Weekly/daily volatility analysis
+  - PredictionCard: Expected price movement ranges
+  - PriceChart: Historical data visualization with Recharts
+- **Theme**: Dark mode default, professional financial design system
+- **Navigation**: Sidebar with market overview and page links
 
-**UI Component System:**
-- shadcn/ui component library built on Radix UI primitives for accessible, customizable components
-- Tailwind CSS for utility-first styling with custom design tokens
-- CVA (class-variance-authority) for type-safe component variants
-- Dark mode by default with light mode support via ThemeProvider context
+## Recent Changes (October 11, 2025)
+- Initial implementation of complete futures prediction platform
+- Defined all data models for contracts, prices, and predictions
+- Built comprehensive frontend with Dashboard, Analytics, and Predictions pages
+- Implemented backend API with volatility calculations
+- Fixed sidebar navigation to show market overview instead of broken links
+- Tested core functionality with end-to-end tests
 
-**Design System:**
-- Professional trading platform aesthetic inspired by TradingView and Bloomberg Terminal
-- Custom color palette optimized for financial data visualization (bullish green, bearish red)
-- Typography: Inter for UI, JetBrains Mono for numerical data and prices
-- Responsive layout with mobile-first considerations
+## Key Features
+1. **Real-time Contract Monitoring**: Live prices, daily changes, volume, and open interest
+2. **Volatility Analysis**: Automatic conversion from weekly to daily volatility
+3. **Daily Movement Predictions**: Expected min/max price ranges with confidence levels
+4. **Historical Charts**: Interactive price history visualization
+5. **Analytics Dashboard**: Market statistics and volatility comparisons
+6. **Theme Support**: Dark/light mode with persistent preferences
 
-**State Management:**
-- TanStack Query (React Query) for server state management, caching, and automatic refetching
-- React Context for theme state
-- Local component state for UI interactions
+## Technical Stack
+- **Frontend**: React, Wouter (routing), TanStack Query, Tailwind CSS, Shadcn UI
+- **Backend**: Express.js, Node.js, TypeScript
+- **Charts**: Recharts for financial data visualization
+- **Storage**: In-memory (MemStorage) - ready for PostgreSQL upgrade
+- **Validation**: Zod schemas with Drizzle integration
 
-**Data Visualization:**
-- Recharts library for price charts and volatility visualizations
-- Custom chart components with themed styling for consistent appearance
+## User Workflow
+1. View dashboard with all three futures contracts (/NQ, /ES, /YM)
+2. Filter by specific contract using selector dropdown
+3. Analyze volatility metrics and daily predictions
+4. Navigate to Analytics for market-wide statistics
+5. Review detailed predictions with confidence levels and trends
 
-### Backend Architecture
+## Design System
+- **Colors**: Primary (green/bullish), Destructive (red/bearish), Chart colors for data viz
+- **Typography**: Inter (UI), JetBrains Mono (prices/data)
+- **Layout**: Sidebar navigation, responsive grid system, professional card-based design
+- **Interactions**: Hover elevations, smooth transitions, loading skeletons
 
-**Server Framework:**
-- Express.js with TypeScript running on Node.js
-- RESTful API design pattern for all data endpoints
+## Development Guidelines
+- Follow `design_guidelines.md` for all UI implementations
+- Use Shadcn components for consistency
+- Maintain proper TypeScript typing from shared schema
+- Keep API routes thin with storage layer handling logic
+- Use TanStack Query for all data fetching with proper loading states
 
-**API Structure:**
-- `/api/contracts` - Futures contract CRUD operations
-- `/api/contracts/:symbol` - Individual contract data
-- `/api/historical/:symbol` - Historical price data
-- `/api/predictions` - Daily price movement predictions
-- `/api/predictions/:symbol` - Symbol-specific predictions
-
-**Data Layer:**
-- Storage abstraction interface (IStorage) allows for pluggable storage implementations
-- Current implementation uses in-memory storage (MemStorage) with mock data
-- Designed to support database integration (Drizzle ORM schema defined for PostgreSQL)
-
-**Business Logic:**
-- Volatility calculation: Daily volatility derived from weekly using σ_daily = σ_weekly / √5
-- Price movement prediction based on current price × daily volatility
-- Open interest trend analysis for market sentiment indicators
-
-**Validation:**
-- Zod schemas for runtime type validation
-- Drizzle-zod integration for database schema validation
-- Input validation on all API endpoints
-
-### Database Schema (Designed for PostgreSQL)
-
-**Tables:**
-
-1. **futures_contracts** - Core contract information
-   - Current and previous prices with daily change tracking
-   - Volume and open interest metrics
-   - Weekly and daily volatility calculations
-   - Auto-updating timestamps
-
-2. **historical_prices** - OHLC price data
-   - Date-indexed price records
-   - Volume data for each period
-   - Linked to contracts via symbol
-
-3. **daily_predictions** - Generated movement predictions
-   - Predicted min/max price ranges
-   - Confidence levels and trend indicators (bullish/bearish/neutral)
-   - Open interest change tracking
-   - Timestamp for prediction generation
-
-**Schema Management:**
-- Drizzle ORM with Drizzle Kit for migrations
-- Type-safe database queries with full TypeScript integration
-- Schema validation using drizzle-zod
-
-### Development Workflow
-
-**Development Server:**
-- Vite middleware mode integrated with Express for unified development experience
-- Hot module replacement for instant client-side updates
-- Automatic server restart on backend changes (via tsx watch mode)
-
-**Build Process:**
-- Client: Vite bundles React app to `dist/public`
-- Server: esbuild bundles Express app to `dist` with ESM output
-- Static asset serving in production via Express
-
-**Type Safety:**
-- Shared TypeScript types between client and server via `@shared` alias
-- Path aliases configured for clean imports (@/, @shared/, @assets/)
-- Strict TypeScript configuration with no-emit for type checking
-
-## External Dependencies
-
-**Core Libraries:**
-- **@neondatabase/serverless** - Neon PostgreSQL serverless driver for database connectivity
-- **drizzle-orm** - Type-safe ORM for database operations
-- **drizzle-kit** - Database migrations and schema management
-
-**UI Framework:**
-- **@radix-ui/** - Comprehensive suite of unstyled, accessible UI primitives (30+ components)
-- **tailwindcss** - Utility-first CSS framework
-- **lucide-react** - Icon library for UI elements
-
-**Data & Forms:**
-- **@tanstack/react-query** - Server state management and caching
-- **react-hook-form** - Performant form handling
-- **@hookform/resolvers** - Validation resolver integration
-- **zod** - Runtime type validation and schema definition
-
-**Visualization:**
-- **recharts** - Composable charting library built on D3
-- **embla-carousel-react** - Carousel/slider functionality
-
-**Developer Experience:**
-- **vite** - Next-generation frontend build tool
-- **tsx** - TypeScript execution engine for Node.js
-- **esbuild** - Fast JavaScript bundler for production builds
-- **@replit/** plugins - Replit-specific development tooling (error overlay, cartographer, dev banner)
-
-**Utilities:**
-- **date-fns** - Modern date utility library
-- **clsx** & **tailwind-merge** - Conditional className utilities
-- **nanoid** - Unique ID generation
-- **cmdk** - Command menu component
-
-**Future Integration Ready:**
-- Market data APIs (designed for Tradovate, TradeStation, or similar futures data providers)
-- WebSocket connections for real-time price updates
-- User authentication system (session management infrastructure present with connect-pg-simple)
+## Future Enhancements
+- Live market data API integration (Tradovate, TradeStation)
+- Backtesting module for prediction accuracy validation
+- Automated alerts for significant predicted movements
+- Export functionality for reports and analysis
+- Advanced volatility models (GARCH, implied volatility)
+- User authentication and personalized dashboards
