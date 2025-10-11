@@ -58,14 +58,14 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
   - Real-time status badges show if actual closes fall within/above/below expected ranges
   - Updates automatically when volatility models change while maintaining historical data integrity
 - **Realistic E-mini Futures Prices**: 
-  - Updated all contracts to current market closing prices
+  - Updated all contracts to October 10, 2025 market closing prices
   - /NQ (E-mini Nasdaq-100): 24,726.75
-  - /ES (E-mini S&P 500): ~5,787
-  - /YM (E-mini Dow Jones): ~43,542
+  - /ES (E-mini S&P 500): 6,595.25
+  - /YM (E-mini Dow Jones): 45,706.00
 - **Additional Futures Contracts**:
-  - /RTY (E-mini Russell 2000): ~2,234
-  - /GC (Gold Futures): ~2,685
-  - /CL (Crude Oil Futures): ~77.45
+  - /RTY (E-mini Russell 2000): 2,234.20
+  - /GC (Gold Futures): 4,000.40 (record highs)
+  - /CL (Crude Oil Futures): 58.90
 - **Market Hours Detection**:
   - Real-time CME futures market hours tracking
   - Weekend detection (Sat + Sun before 6PM ET + Fri after 5PM ET)
