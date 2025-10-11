@@ -1,0 +1,57 @@
+Here is a detailed prompt you can use with a coding agent to generate a **web-based application** for generating **daily price movements** based on **weekly volatility**, **latest prices**, and **open interests** for futures contracts like /nq (Nasdaq), /es (S&P 500), and /ym (Dow Jones):
+
+---
+
+## Developer Prompt for Futures Daily Price Movements App
+
+**Objective:**  
+Build a responsive web application for futures contracts (/nq, /es, /ym) that generates daily price movement predictions based on weekly volatility, latest price data, and open interests.
+
+### Core Features
+
+1. **User Interface**  
+   - Dashboard with input fields and real-time display of futures contracts data (/nq, /es, /ym).  
+   - Charts visualizing historical price movements, volatility, open interest, and generated daily price movements.  
+   - Filters to select contract type and date ranges.
+
+2. **Data Integration**  
+   - Real-time and/or historical price data feed for futures contracts (e.g., prices and volumes).  
+   - Weekly volatility data calculation or ingestion (can be computed or retrieved from API).  
+   - Open interest data retrieval.  
+   - Use a reliable market data API supporting futures data (e.g., Tradovate API, TradeStation API, or another brokerage API).
+
+3. **Core Calculation Engine**  
+   - Calculate **daily expected price movements** based on latest prices and weekly volatility, using appropriate statistical or financial models (e.g., annualized volatility scaled for daily periods).  
+   - Incorporate open interest levels as potential market sentiment or liquidity filters influencing price movement estimates.  
+   - Possibly integrate automated alerts based on significant predicted moves.
+
+4. **Technology Stack**  
+   - Frontend: React.js or Vue.js for dynamic, responsive UI.  
+   - Backend: Node.js/Express or Python/Flask for data processing and API requests.  
+   - Database: PostgreSQL or MongoDB for storing historical price data and user settings.  
+   - Third-party API integration for market data and possibly user authentication.
+
+5. **User Management (Optional)**  
+   - Basic user authentication to save preferences and access personalized dashboards.
+
+6. **Additional Useful Features**  
+   - Export reports of daily generated movement data.  
+   - Mobile-friendly layout for web access from any device.  
+   - Backtesting module to test predictions against historical data.
+
+### Example Calculation Logic Summary
+
+- Retrieve weekly historical prices → Calculate weekly volatility (e.g., standard deviation of log returns).  
+- Convert weekly volatility to daily volatility: \( \sigma_{daily} = \sigma_{weekly} / \sqrt{5} \) assuming 5 trading days.  
+- Calculate expected daily price move range: \( \text{daily move} = \text{current price} \times \sigma_{daily} \).  
+- Adjust weighting or confidence using open interest trends (rising open interest may imply stronger trend confirmation).
+
+---
+
+### Sample prompt for coding agent:
+
+> "Create a full-stack web app for futures price movement prediction featuring /nq, /es, and /ym contracts. The app must pull real-time prices and open interest data from a market data API, calculate daily expected price movement based on weekly volatility, and display results on interactive charts. Use React for frontend and Node.js for backend. The backend should compute weekly volatility from historical price data and adjust daily movement forecasts dynamically. Include user authentication for saving preferences and mobile responsiveness. Provide API integration examples for data ingestion, and implement a clear, user-friendly dashboard."
+
+---
+
+This prompt covers your desired functionality based on best practices in futures app development including features and technologies seen in platforms described in the search results[1][4][5]. It reflects your specific focus on futures contracts and data inputs (weekly volatility, latest price, open interest).
