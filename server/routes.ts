@@ -382,8 +382,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if weekly moves already exist for this contract
       const existing = await storage.getWeeklyMoves(contractSymbol);
       
-      // Use existing week open price if available, otherwise use current price
-      const weekOpenPrice = existing?.weekOpenPrice ?? currentPrice;
+      // If data exists and it's for the same week, return existing data (don't regenerate)
+      if (existing && existing.weekStartDate.toISOString().split('T')[0] === weekStartDate.toISOString().split('T')[0]) {
+        console.log(`📅 Weekly moves already exist for ${contractSymbol} (week of ${weekStartDate.toISOString().split('T')[0]}), using existing data`);
+        return res.status(200).json(existing);
+      }
+      
+      // If it's a new week or no existing data, generate new moves
+      const weekOpenPrice = currentPrice; // New week always starts with current price
       
       const calculatedMoves = calculateWeeklyExpectedMoves(
         contractSymbol,
@@ -395,25 +401,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let result;
       
-      if (existing) {
-        // Update existing moves, preserving the original week open price
-        result = await storage.updateWeeklyMoves(contractSymbol, {
-          ...calculatedMoves,
-          weekOpenPrice: existing.weekOpenPrice, // Preserve original week open
-          // Preserve actual closes that have been recorded
-          mondayActualClose: existing.mondayActualClose,
-          tuesdayActualClose: existing.tuesdayActualClose,
-          wednesdayActualClose: existing.wednesdayActualClose,
-          thursdayActualClose: existing.thursdayActualClose,
-          fridayActualClose: existing.fridayActualClose,
-        });
+      if (existing && existing.weekStartDate.toISOString().split('T')[0] !== weekStartDate.toISOString().split('T')[0]) {
+        // New week - create fresh moves (replaces old week's data)
+        console.log(`🔄 New week detected for ${contractSymbol}, creating fresh weekly moves`);
+        result = await storage.createWeeklyMoves(calculatedMoves);
       } else {
-        // Create new moves
+        // No existing data - create new
+        console.log(`✨ Creating new weekly moves for ${contractSymbol}`);
         result = await storage.createWeeklyMoves(calculatedMoves);
       }
 
       res.status(201).json(result);
     } catch (error) {
+      console.error("Error generating weekly moves:", error);
       res.status(500).json({ error: "Failed to generate weekly moves" });
     }
   });
@@ -478,8 +478,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const quotes = await getAllLastTradedPrices();
       const results = [];
+      const skipped = [];
+      const today = new Date();
 
       for (const quote of quotes) {
+        // Check if data for today already exists
+        const existing = await storage.getHistoricalDailyMovesByDate(quote.symbol, today);
+        if (existing) {
+          console.log(`📅 Historical data already exists for ${quote.symbol} on ${today.toISOString().split('T')[0]}, skipping`);
+          skipped.push(quote.symbol);
+          continue;
+        }
+
         // Get contract to retrieve volatility data
         const contract = await storage.getContractBySymbol(quote.symbol);
         if (!contract) {
@@ -497,7 +507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create historical daily expected moves record
         const movesData: typeof insertHistoricalDailyExpectedMovesSchema._type = {
           contractSymbol: quote.symbol,
-          date: new Date(),
+          date: today,
           lastTradedPrice: quote.regularMarketPrice,
           previousClose: quote.regularMarketPreviousClose,
           weeklyVolatility: contract.weeklyVolatility,
@@ -511,11 +521,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validatedData = insertHistoricalDailyExpectedMovesSchema.parse(movesData);
         const created = await storage.createHistoricalDailyMoves(validatedData);
         results.push(created);
+        console.log(`✨ Created historical data for ${quote.symbol}`);
       }
 
+      const message = skipped.length > 0 
+        ? `Collected daily data for ${results.length} contracts (skipped ${skipped.length} duplicates: ${skipped.join(', ')})`
+        : `Collected daily data for ${results.length} contracts`;
+
       res.status(201).json({ 
-        message: `Collected daily data for ${results.length} contracts`,
-        data: results 
+        message,
+        data: results,
+        skipped 
       });
     } catch (error) {
       console.error("Error collecting daily data:", error);

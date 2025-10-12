@@ -47,6 +47,7 @@ export interface IStorage {
   // Historical Daily Expected Moves
   getAllHistoricalDailyMoves(): Promise<HistoricalDailyExpectedMoves[]>;
   getHistoricalDailyMovesBySymbol(contractSymbol: string, limit?: number): Promise<HistoricalDailyExpectedMoves[]>;
+  getHistoricalDailyMovesByDate(contractSymbol: string, date: Date): Promise<HistoricalDailyExpectedMoves | undefined>;
   createHistoricalDailyMoves(moves: InsertHistoricalDailyExpectedMoves): Promise<HistoricalDailyExpectedMoves>;
   updateHistoricalDailyMoves(id: string, update: Partial<HistoricalDailyExpectedMoves>): Promise<HistoricalDailyExpectedMoves | undefined>;
 }
@@ -476,6 +477,12 @@ export class MemStorage implements IStorage {
   async getHistoricalDailyMovesBySymbol(contractSymbol: string, limit: number = 30): Promise<HistoricalDailyExpectedMoves[]> {
     const moves = this.historicalDailyMoves.get(contractSymbol) || [];
     return moves.slice(-limit).sort((a, b) => b.date.getTime() - a.date.getTime());
+  }
+
+  async getHistoricalDailyMovesByDate(contractSymbol: string, date: Date): Promise<HistoricalDailyExpectedMoves | undefined> {
+    const moves = this.historicalDailyMoves.get(contractSymbol) || [];
+    const dateStr = date.toISOString().split('T')[0];
+    return moves.find(m => m.date.toISOString().split('T')[0] === dateStr);
   }
 
   async createHistoricalDailyMoves(insertMoves: InsertHistoricalDailyExpectedMoves): Promise<HistoricalDailyExpectedMoves> {
