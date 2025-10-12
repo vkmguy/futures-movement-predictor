@@ -45,6 +45,9 @@ interface IVInputDialogProps {
 
 export function IVInputDialog({ contracts }: IVInputDialogProps) {
   const [open, setOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [pendingValues, setPendingValues] = useState<IVFormValues | null>(null);
+  const [existingUpdates, setExistingUpdates] = useState<any[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -60,21 +63,40 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
   });
 
   const updateIVMutation = useMutation({
-    mutationFn: async (values: IVFormValues) => {
+    mutationFn: async ({ values, confirmOverwrite = false }: { values: IVFormValues; confirmOverwrite?: boolean }) => {
       const updates = Object.entries(values).map(([symbol, percentage]) => ({
         symbol,
         weeklyVolatility: percentage / 100, // Convert percentage to decimal
       }));
 
-      const response = await apiRequest(
-        "POST",
-        "/api/contracts/batch-update-iv",
-        { updates }
-      );
-      
-      return await response.json() as { success: boolean; updatedContracts: FuturesContract[]; message: string };
+      try {
+        const response = await apiRequest(
+          "POST",
+          "/api/contracts/batch-update-iv",
+          { updates, confirmOverwrite }
+        );
+        
+        return await response.json() as { success: boolean; updatedContracts: FuturesContract[]; message: string };
+      } catch (error: any) {
+        // Check if it's a 409 (Conflict) error requiring confirmation
+        if (error.message && error.message.startsWith("409:")) {
+          // Parse the 409 response body
+          const errorBody = error.message.substring(5); // Remove "409: " prefix
+          const data = JSON.parse(errorBody);
+          return { requiresConfirmation: true, ...data };
+        }
+        // Re-throw other errors
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      if (data.requiresConfirmation) {
+        // Show confirmation dialog
+        setExistingUpdates(data.existingUpdates || []);
+        setConfirmDialogOpen(true);
+        return;
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/predictions/ALL"] });
       toast({
@@ -82,6 +104,7 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
         description: data.message,
       });
       setOpen(false);
+      setPendingValues(null);
       form.reset(form.getValues()); // Reset with new values
     },
     onError: (error: Error) => {
@@ -94,7 +117,20 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
   });
 
   const onSubmit = (values: IVFormValues) => {
-    updateIVMutation.mutate(values);
+    setPendingValues(values);
+    updateIVMutation.mutate({ values });
+  };
+
+  const handleConfirmOverwrite = () => {
+    if (pendingValues) {
+      updateIVMutation.mutate({ values: pendingValues, confirmOverwrite: true });
+      setConfirmDialogOpen(false);
+    }
+  };
+
+  const handleCancelOverwrite = () => {
+    setConfirmDialogOpen(false);
+    setPendingValues(null);
   };
 
   // Get the latest update time from contracts
@@ -195,6 +231,61 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
           </form>
         </Form>
       </DialogContent>
+
+      {/* Confirmation Dialog for Overwriting Same-Day Updates */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Overwrite Today's IV Updates?</DialogTitle>
+            <DialogDescription>
+              You have already updated IV values today for {existingUpdates.length} contract{existingUpdates.length > 1 ? 's' : ''}. 
+              Do you want to overwrite the existing values?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            {existingUpdates.map((update: any) => (
+              <div key={update.symbol} className="flex items-center justify-between p-3 border rounded-md">
+                <div>
+                  <p className="font-medium">{update.symbol}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Current: {(update.currentValue * 100).toFixed(2)}% → New: {(update.newValue * 100).toFixed(2)}%
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Last updated: {new Date(update.updatedAt).toLocaleTimeString()}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCancelOverwrite}
+              disabled={updateIVMutation.isPending}
+              data-testid="button-cancel-overwrite"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmOverwrite}
+              disabled={updateIVMutation.isPending}
+              data-testid="button-confirm-overwrite"
+            >
+              {updateIVMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Yes, Overwrite"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

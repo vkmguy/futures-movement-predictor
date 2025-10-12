@@ -76,10 +76,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get IV update history
+  app.get("/api/iv-updates", async (req, res) => {
+    try {
+      const { symbol } = req.query;
+      
+      if (symbol && typeof symbol === 'string') {
+        const updates = await storage.getIvUpdatesBySymbol(symbol);
+        return res.json(updates);
+      }
+      
+      const allUpdates = await storage.getAllIvUpdates();
+      res.json(allUpdates);
+    } catch (error) {
+      console.error("Error fetching IV updates:", error);
+      res.status(500).json({ error: "Failed to fetch IV updates" });
+    }
+  });
+
   // Batch update IV (weekly volatility) values
   app.post("/api/contracts/batch-update-iv", async (req, res) => {
     try {
-      const { ivBatchUpdateSchema } = await import("@shared/schema");
+      const { ivBatchUpdateSchema, insertIvUpdateSchema } = await import("@shared/schema");
       
       console.log("📊 Received batch IV update request:", JSON.stringify(req.body, null, 2));
       
@@ -95,7 +113,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { updates } = validationResult.data;
-      console.log("✅ Validated updates:", updates);
+      const confirmOverwrite = req.body.confirmOverwrite === true;
+      console.log("✅ Validated updates:", updates, "Confirm:", confirmOverwrite);
+      
+      // Check for existing IV updates today (unless user confirmed overwrite)
+      if (!confirmOverwrite) {
+        const today = new Date();
+        const existingUpdates: any[] = [];
+        
+        for (const update of updates) {
+          const existing = await storage.getIvUpdateByDate(update.symbol, today);
+          if (existing) {
+            existingUpdates.push({
+              symbol: update.symbol,
+              currentValue: existing.weeklyVolatility,
+              newValue: update.weeklyVolatility,
+              updatedAt: existing.createdAt,
+            });
+          }
+        }
+        
+        // If there are existing updates for today, ask for confirmation
+        if (existingUpdates.length > 0) {
+          console.log("⚠️  Found existing IV updates for today:", existingUpdates);
+          return res.status(409).json({ 
+            requiresConfirmation: true,
+            existingUpdates,
+            message: `IV values were already updated today for ${existingUpdates.length} contract${existingUpdates.length > 1 ? 's' : ''}. Do you want to overwrite?`
+          });
+        }
+      }
       
       // Perform batch update
       const updatedContracts = await storage.batchUpdateVolatility(updates);
@@ -107,6 +154,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           details: "All provided symbols may be invalid or not found in the system"
         });
       }
+      
+      // Store IV update history
+      const today = new Date();
+      const ivUpdatePromises = updates.map(async (update) => {
+        // Check if update exists for today
+        const existing = await storage.getIvUpdateByDate(update.symbol, today);
+        
+        if (existing && confirmOverwrite) {
+          // Update existing record
+          return await storage.updateIvUpdate(existing.id, {
+            weeklyVolatility: update.weeklyVolatility,
+          });
+        } else if (!existing) {
+          // Create new record
+          const ivUpdate = insertIvUpdateSchema.parse({
+            contractSymbol: update.symbol,
+            weeklyVolatility: update.weeklyVolatility,
+            updateDate: today,
+            source: 'manual',
+          });
+          return await storage.createIvUpdate(ivUpdate);
+        }
+      });
+      
+      await Promise.all(ivUpdatePromises);
       
       // Regenerate predictions for all updated contracts (replace, not accumulate)
       for (const contract of updatedContracts) {

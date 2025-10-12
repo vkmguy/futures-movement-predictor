@@ -170,6 +170,24 @@ export const insertHistoricalDailyExpectedMovesSchema = createInsertSchema(histo
 export type InsertHistoricalDailyExpectedMoves = z.infer<typeof insertHistoricalDailyExpectedMovesSchema>;
 export type HistoricalDailyExpectedMoves = typeof historicalDailyExpectedMoves.$inferSelect;
 
+// IV Updates History - tracks all manual IV updates with dates
+export const ivUpdates = pgTable("iv_updates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractSymbol: text("contract_symbol").notNull(),
+  weeklyVolatility: real("weekly_volatility").notNull(), // IV as decimal (e.g., 0.042 for 4.2%)
+  updateDate: timestamp("update_date").notNull(), // Date of the update
+  source: text("source").notNull().default('manual'), // 'manual', 'system', etc.
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertIvUpdateSchema = createInsertSchema(ivUpdates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertIvUpdate = z.infer<typeof insertIvUpdateSchema>;
+export type IvUpdate = typeof ivUpdates.$inferSelect;
+
 // IV Batch Update Schema
 const VALID_CONTRACT_SYMBOLS = ["/NQ", "/ES", "/YM", "/RTY", "/GC", "/CL"] as const;
 

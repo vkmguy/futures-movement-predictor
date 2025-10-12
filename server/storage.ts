@@ -10,7 +10,9 @@ import {
   type WeeklyExpectedMoves,
   type InsertWeeklyExpectedMoves,
   type HistoricalDailyExpectedMoves,
-  type InsertHistoricalDailyExpectedMoves
+  type InsertHistoricalDailyExpectedMoves,
+  type IvUpdate,
+  type InsertIvUpdate
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -50,6 +52,13 @@ export interface IStorage {
   getHistoricalDailyMovesByDate(contractSymbol: string, date: Date): Promise<HistoricalDailyExpectedMoves | undefined>;
   createHistoricalDailyMoves(moves: InsertHistoricalDailyExpectedMoves): Promise<HistoricalDailyExpectedMoves>;
   updateHistoricalDailyMoves(id: string, update: Partial<HistoricalDailyExpectedMoves>): Promise<HistoricalDailyExpectedMoves | undefined>;
+
+  // IV Updates History
+  getAllIvUpdates(): Promise<IvUpdate[]>;
+  getIvUpdatesBySymbol(contractSymbol: string, limit?: number): Promise<IvUpdate[]>;
+  getIvUpdateByDate(contractSymbol: string, date: Date): Promise<IvUpdate | undefined>;
+  createIvUpdate(update: InsertIvUpdate): Promise<IvUpdate>;
+  updateIvUpdate(id: string, update: Partial<IvUpdate>): Promise<IvUpdate | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -59,6 +68,7 @@ export class MemStorage implements IStorage {
   private alerts: Map<string, PriceAlert>;
   private weeklyMoves: Map<string, WeeklyExpectedMoves>;
   private historicalDailyMoves: Map<string, HistoricalDailyExpectedMoves[]>;
+  private ivUpdates: Map<string, IvUpdate[]>;
 
   constructor() {
     this.contracts = new Map();
@@ -67,6 +77,7 @@ export class MemStorage implements IStorage {
     this.alerts = new Map();
     this.weeklyMoves = new Map();
     this.historicalDailyMoves = new Map();
+    this.ivUpdates = new Map();
     this.initializeContractTemplates();
   }
 
@@ -509,6 +520,55 @@ export class MemStorage implements IStorage {
         const updated = { ...moves[index], ...update };
         moves[index] = updated;
         this.historicalDailyMoves.set(symbol, moves);
+        return updated;
+      }
+    }
+    return undefined;
+  }
+
+  // IV Updates History Methods
+  async getAllIvUpdates(): Promise<IvUpdate[]> {
+    const allUpdates: IvUpdate[] = [];
+    for (const updates of Array.from(this.ivUpdates.values())) {
+      allUpdates.push(...updates);
+    }
+    return allUpdates.sort((a, b) => b.updateDate.getTime() - a.updateDate.getTime());
+  }
+
+  async getIvUpdatesBySymbol(contractSymbol: string, limit: number = 30): Promise<IvUpdate[]> {
+    const updates = this.ivUpdates.get(contractSymbol) || [];
+    return updates.slice(-limit).sort((a, b) => b.updateDate.getTime() - a.updateDate.getTime());
+  }
+
+  async getIvUpdateByDate(contractSymbol: string, date: Date): Promise<IvUpdate | undefined> {
+    const updates = this.ivUpdates.get(contractSymbol) || [];
+    const dateStr = date.toISOString().split('T')[0];
+    return updates.find(u => u.updateDate.toISOString().split('T')[0] === dateStr);
+  }
+
+  async createIvUpdate(insertUpdate: InsertIvUpdate): Promise<IvUpdate> {
+    const id = randomUUID();
+    const update: IvUpdate = {
+      ...insertUpdate,
+      id,
+      source: insertUpdate.source ?? 'manual',
+      createdAt: new Date(),
+    };
+    
+    const existing = this.ivUpdates.get(insertUpdate.contractSymbol) || [];
+    existing.push(update);
+    this.ivUpdates.set(insertUpdate.contractSymbol, existing);
+    
+    return update;
+  }
+
+  async updateIvUpdate(id: string, updateData: Partial<IvUpdate>): Promise<IvUpdate | undefined> {
+    for (const [symbol, updates] of Array.from(this.ivUpdates.entries())) {
+      const index = updates.findIndex((u: IvUpdate) => u.id === id);
+      if (index !== -1) {
+        const updated = { ...updates[index], ...updateData };
+        updates[index] = updated;
+        this.ivUpdates.set(symbol, updates);
         return updated;
       }
     }
