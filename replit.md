@@ -34,6 +34,10 @@ I prefer detailed explanations and iterative development. Ask before making majo
 -   **Frontend**: React, Wouter (routing), TanStack Query, Tailwind CSS, Shadcn UI.
 -   **Storage**: PostgreSQL database with Drizzle ORM for persistent storage. **Weekly Expected Moves** are now fully database-backed with automatic deduplication (one record per contract per week) and user-controlled deletion.
 -   **API Routes**: RESTful endpoints for contracts, predictions, historical data, and weekly moves (GET, POST, PATCH, DELETE).
+-   **Database Drivers**: Environment-aware database connection system that automatically selects the appropriate PostgreSQL driver:
+    -   **Replit/Neon Environment**: Uses `@neondatabase/serverless` with WebSocket-based connections for Neon cloud database
+    -   **Local Docker Environment**: Uses standard `postgres` package with TCP connections for local PostgreSQL containers
+    -   **Auto-detection**: Checks DATABASE_URL for "neon.tech" or "neon.database" to determine which driver to use
 -   **Deployment**: Docker containerization for production, supporting a multi-stage Dockerfile and a 4-service `docker-compose` stack (`web`, `scheduler`, `postgres`, `migrations`) for isolated, secure, and scalable deployment.
 
 ## External Dependencies
