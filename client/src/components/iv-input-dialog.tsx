@@ -48,6 +48,7 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingValues, setPendingValues] = useState<IVFormValues | null>(null);
   const [existingUpdates, setExistingUpdates] = useState<any[]>([]);
+  const [selectedContracts, setSelectedContracts] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -91,8 +92,11 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
     },
     onSuccess: (data) => {
       if (data.requiresConfirmation) {
-        // Show confirmation dialog
+        // Show confirmation dialog with checkboxes
         setExistingUpdates(data.existingUpdates || []);
+        // Pre-select all contracts by default
+        const symbols = data.existingUpdates?.map((u: any) => u.symbol) || [];
+        setSelectedContracts(new Set(symbols));
         setConfirmDialogOpen(true);
         return;
       }
@@ -105,6 +109,7 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
       });
       setOpen(false);
       setPendingValues(null);
+      setSelectedContracts(new Set());
       form.reset(form.getValues()); // Reset with new values
     },
     onError: (error: Error) => {
@@ -122,8 +127,16 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
   };
 
   const handleConfirmOverwrite = () => {
-    if (pendingValues) {
-      updateIVMutation.mutate({ values: pendingValues, confirmOverwrite: true });
+    if (pendingValues && selectedContracts.size > 0) {
+      // Filter to only update selected contracts
+      const filteredValues: Partial<IVFormValues> = {};
+      selectedContracts.forEach(symbol => {
+        if (symbol in pendingValues) {
+          filteredValues[symbol as keyof IVFormValues] = pendingValues[symbol as keyof IVFormValues];
+        }
+      });
+      
+      updateIVMutation.mutate({ values: filteredValues as IVFormValues, confirmOverwrite: true });
       setConfirmDialogOpen(false);
     }
   };
@@ -131,6 +144,26 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
   const handleCancelOverwrite = () => {
     setConfirmDialogOpen(false);
     setPendingValues(null);
+    setSelectedContracts(new Set());
+  };
+
+  const handleToggleContract = (symbol: string) => {
+    const newSelected = new Set(selectedContracts);
+    if (newSelected.has(symbol)) {
+      newSelected.delete(symbol);
+    } else {
+      newSelected.add(symbol);
+    }
+    setSelectedContracts(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    const symbols = existingUpdates.map((u: any) => u.symbol);
+    setSelectedContracts(new Set(symbols));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedContracts(new Set());
   };
 
   // Get the latest update time from contracts
@@ -234,32 +267,64 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
 
       {/* Confirmation Dialog for Overwriting Same-Day Updates */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Overwrite Today's IV Updates?</DialogTitle>
+            <DialogTitle>Select Contracts to Update</DialogTitle>
             <DialogDescription>
-              You have already updated IV values today for {existingUpdates.length} contract{existingUpdates.length > 1 ? 's' : ''}. 
-              Do you want to overwrite the existing values?
+              You've already updated IV values today for {existingUpdates.length} contract{existingUpdates.length > 1 ? 's' : ''}. 
+              Choose which contracts to overwrite:
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-4">
+          <div className="flex gap-2 pb-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm"
+              onClick={handleSelectAll}
+              data-testid="button-select-all"
+            >
+              Select All
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm"
+              onClick={handleDeselectAll}
+              data-testid="button-deselect-all"
+            >
+              Deselect All
+            </Button>
+          </div>
+
+          <div className="space-y-2 max-h-[400px] overflow-y-auto py-2">
             {existingUpdates.map((update: any) => (
-              <div key={update.symbol} className="flex items-center justify-between p-3 border rounded-md">
-                <div>
+              <label
+                key={update.symbol}
+                className="flex items-center gap-3 p-3 border rounded-md cursor-pointer hover-elevate"
+                data-testid={`label-contract-${update.symbol}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedContracts.has(update.symbol)}
+                  onChange={() => handleToggleContract(update.symbol)}
+                  className="w-4 h-4 rounded border-gray-300"
+                  data-testid={`checkbox-contract-${update.symbol}`}
+                />
+                <div className="flex-1">
                   <p className="font-medium">{update.symbol}</p>
                   <p className="text-sm text-muted-foreground">
                     Current: {(update.currentValue * 100).toFixed(2)}% → New: {(update.newValue * 100).toFixed(2)}%
                   </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Last updated: {new Date(update.updatedAt).toLocaleTimeString()}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Last updated: {new Date(update.updatedAt).toLocaleTimeString()}
-                </p>
-              </div>
+              </label>
             ))}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={handleCancelOverwrite}
@@ -269,9 +334,9 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              variant="default"
               onClick={handleConfirmOverwrite}
-              disabled={updateIVMutation.isPending}
+              disabled={updateIVMutation.isPending || selectedContracts.size === 0}
               data-testid="button-confirm-overwrite"
             >
               {updateIVMutation.isPending ? (
@@ -280,7 +345,7 @@ export function IVInputDialog({ contracts }: IVInputDialogProps) {
                   Updating...
                 </>
               ) : (
-                "Yes, Overwrite"
+                `Update Selected (${selectedContracts.size})`
               )}
             </Button>
           </DialogFooter>
