@@ -12,10 +12,12 @@ export interface VolatilityResult {
 }
 
 /**
- * Standard conversion: σ_daily = σ_weekly / √5
+ * Standard conversion: σ_daily = σ_weekly / √N
+ * Where N = trading days remaining until expiration (defaults to 5 for weekly)
  */
-export function standardVolatilityConversion(weeklyVolatility: number): VolatilityResult {
-  const dailyVolatility = weeklyVolatility / Math.sqrt(5);
+export function standardVolatilityConversion(weeklyVolatility: number, daysRemaining?: number): VolatilityResult {
+  const N = daysRemaining && daysRemaining > 0 ? daysRemaining : 5;
+  const dailyVolatility = weeklyVolatility / Math.sqrt(N);
   
   return {
     model: 'Standard',
@@ -33,7 +35,8 @@ export function standardVolatilityConversion(weeklyVolatility: number): Volatili
 export function garchVolatility(
   weeklyVolatility: number,
   recentPriceChange: number = 0,
-  previousVolatility?: number
+  previousVolatility?: number,
+  daysRemaining?: number
 ): VolatilityResult {
   // GARCH(1,1) parameters (typical values)
   const omega = 0.000001; // Long-term variance level
@@ -49,8 +52,9 @@ export function garchVolatility(
   const forecastVariance = omega + alpha * recentShock + beta * prevVariance;
   const forecastVolatility = Math.sqrt(forecastVariance);
   
-  // Convert to daily
-  const dailyVolatility = forecastVolatility / Math.sqrt(5);
+  // Convert to daily with dynamic scaling
+  const N = daysRemaining && daysRemaining > 0 ? daysRemaining : 5;
+  const dailyVolatility = forecastVolatility / Math.sqrt(N);
   
   return {
     model: 'GARCH(1,1)',
@@ -69,7 +73,8 @@ export function garchVolatility(
 export function ewmaVolatility(
   weeklyVolatility: number,
   recentPriceChange: number = 0,
-  previousVolatility?: number
+  previousVolatility?: number,
+  daysRemaining?: number
 ): VolatilityResult {
   const lambda = 0.94; // RiskMetrics uses 0.94 for daily data
   
@@ -81,7 +86,9 @@ export function ewmaVolatility(
   const forecastVariance = lambda * prevVariance + (1 - lambda) * Math.pow(recentReturn, 2);
   const forecastVolatility = Math.sqrt(forecastVariance);
   
-  const dailyVolatility = forecastVolatility / Math.sqrt(5);
+  // Convert to daily with dynamic scaling
+  const N = daysRemaining && daysRemaining > 0 ? daysRemaining : 5;
+  const dailyVolatility = forecastVolatility / Math.sqrt(N);
   
   return {
     model: 'EWMA',
@@ -94,20 +101,22 @@ export function ewmaVolatility(
 
 /**
  * Calculate volatility using selected model
+ * All models now support dynamic scaling based on days remaining until expiration
  */
 export function calculateVolatility(
   model: 'standard' | 'garch' | 'ewma',
   weeklyVolatility: number,
   recentPriceChange: number = 0,
-  previousVolatility?: number
+  previousVolatility?: number,
+  daysRemaining?: number
 ): VolatilityResult {
   switch (model) {
     case 'garch':
-      return garchVolatility(weeklyVolatility, recentPriceChange, previousVolatility);
+      return garchVolatility(weeklyVolatility, recentPriceChange, previousVolatility, daysRemaining);
     case 'ewma':
-      return ewmaVolatility(weeklyVolatility, recentPriceChange, previousVolatility);
+      return ewmaVolatility(weeklyVolatility, recentPriceChange, previousVolatility, daysRemaining);
     case 'standard':
     default:
-      return standardVolatilityConversion(weeklyVolatility);
+      return standardVolatilityConversion(weeklyVolatility, daysRemaining);
   }
 }

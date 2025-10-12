@@ -14,7 +14,14 @@ export const futuresContracts = pgTable("futures_contracts", {
   volume: integer("volume").notNull(),
   openInterest: integer("open_interest").notNull(),
   weeklyVolatility: real("weekly_volatility").notNull(),
-  dailyVolatility: real("daily_volatility").notNull(),
+  dailyVolatility: real("daily_volatility").notNull(), // σ_daily = σ_weekly / √N (N = days remaining)
+  
+  // Expiration tracking fields
+  contractType: text("contract_type").notNull().default('equity_index'), // 'equity_index' or 'commodity'
+  expirationDate: timestamp("expiration_date"), // Last trading day
+  daysRemaining: integer("days_remaining"), // Trading days until expiration
+  isExpirationWeek: integer("is_expiration_week").notNull().default(0), // 1 if ≤5 days remaining
+  
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

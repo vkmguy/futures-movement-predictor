@@ -1,4 +1,4 @@
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { TrendingDown, TrendingUp, Calendar, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { FuturesContract } from "@shared/schema";
@@ -11,15 +11,27 @@ export function ContractCard({ contract }: ContractCardProps) {
   const isPositive = contract.dailyChange >= 0;
   const changeColor = isPositive ? "text-primary" : "text-destructive";
   const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+  const isExpirationWeek = contract.isExpirationWeek === 1;
+  const daysRemaining = contract.daysRemaining ?? 0;
 
   return (
-    <Card data-testid={`card-contract-${contract.symbol}`} className="hover-elevate">
+    <Card 
+      data-testid={`card-contract-${contract.symbol}`} 
+      className={`hover-elevate ${isExpirationWeek ? 'border-destructive' : ''}`}
+    >
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             {contract.name}
           </CardTitle>
-          <span className="text-lg font-mono font-semibold">{contract.symbol}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-mono font-semibold">{contract.symbol}</span>
+            {contract.contractType && (
+              <Badge variant="outline" className="text-xs">
+                {contract.contractType === 'equity_index' ? 'Index' : 'Commodity'}
+              </Badge>
+            )}
+          </div>
         </div>
         <Badge variant={isPositive ? "default" : "destructive"} className="gap-1">
           <TrendIcon className="h-3 w-3" />
@@ -50,6 +62,27 @@ export function ContractCard({ contract }: ContractCardProps) {
             </span>
           </div>
         </div>
+
+        {/* Expiration Information */}
+        {daysRemaining > 0 && (
+          <div className="flex items-center justify-between pt-2 border-t border-card-border">
+            <div className="flex items-center gap-1.5">
+              {isExpirationWeek ? (
+                <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+              ) : (
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+              <span className="text-xs text-muted-foreground">Days to Expiration</span>
+            </div>
+            <Badge 
+              variant={isExpirationWeek ? "destructive" : "secondary"}
+              className="text-xs"
+              data-testid={`badge-expiration-${contract.symbol}`}
+            >
+              {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
+            </Badge>
+          </div>
+        )}
         
         <div className="flex items-center justify-between pt-2 border-t border-card-border">
           <span className="text-xs text-muted-foreground">Updated</span>

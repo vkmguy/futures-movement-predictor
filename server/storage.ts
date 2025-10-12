@@ -82,6 +82,10 @@ export class MemStorage implements IStorage {
         openInterest: 287432,
         weeklyVolatility: 0.0285,
         dailyVolatility: 0.0127,
+        contractType: "equity_index",
+        expirationDate: new Date("2025-12-19"),
+        daysRemaining: 48,
+        isExpirationWeek: 0,
       },
       {
         symbol: "/ES",
@@ -94,6 +98,10 @@ export class MemStorage implements IStorage {
         openInterest: 3256789,
         weeklyVolatility: 0.0245,
         dailyVolatility: 0.0110,
+        contractType: "equity_index",
+        expirationDate: new Date("2025-12-19"),
+        daysRemaining: 48,
+        isExpirationWeek: 0,
       },
       {
         symbol: "/YM",
@@ -106,6 +114,10 @@ export class MemStorage implements IStorage {
         openInterest: 184567,
         weeklyVolatility: 0.0235,
         dailyVolatility: 0.0105,
+        contractType: "equity_index",
+        expirationDate: new Date("2025-12-19"),
+        daysRemaining: 48,
+        isExpirationWeek: 0,
       },
       {
         symbol: "/RTY",
@@ -118,6 +130,10 @@ export class MemStorage implements IStorage {
         openInterest: 245678,
         weeklyVolatility: 0.0325,
         dailyVolatility: 0.0145,
+        contractType: "equity_index",
+        expirationDate: new Date("2025-12-19"),
+        daysRemaining: 48,
+        isExpirationWeek: 0,
       },
       {
         symbol: "/GC",
@@ -130,6 +146,10 @@ export class MemStorage implements IStorage {
         openInterest: 456789,
         weeklyVolatility: 0.0195,
         dailyVolatility: 0.0087,
+        contractType: "commodity",
+        expirationDate: new Date("2025-10-29"),
+        daysRemaining: 13,
+        isExpirationWeek: 0,
       },
       {
         symbol: "/CL",
@@ -142,16 +162,25 @@ export class MemStorage implements IStorage {
         openInterest: 789012,
         weeklyVolatility: 0.0415,
         dailyVolatility: 0.0186,
+        contractType: "commodity",
+        expirationDate: new Date("2025-10-22"),
+        daysRemaining: 7,
+        isExpirationWeek: 0,
       },
     ];
 
     mockContracts.forEach(contract => {
       const id = randomUUID();
-      this.contracts.set(contract.symbol, {
+      const fullContract: FuturesContract = {
         ...contract,
         id,
         updatedAt: new Date(),
-      });
+        contractType: contract.contractType || 'equity_index',
+        expirationDate: contract.expirationDate || null,
+        daysRemaining: contract.daysRemaining || null,
+        isExpirationWeek: contract.isExpirationWeek ?? 0,
+      };
+      this.contracts.set(contract.symbol, fullContract);
 
       // Generate historical prices for each contract
       const historicalData: HistoricalPrice[] = [];
@@ -221,6 +250,10 @@ export class MemStorage implements IStorage {
       ...insertContract,
       id,
       updatedAt: new Date(),
+      contractType: insertContract.contractType || 'equity_index',
+      expirationDate: insertContract.expirationDate || null,
+      daysRemaining: insertContract.daysRemaining || null,
+      isExpirationWeek: insertContract.isExpirationWeek ?? 0,
     };
     this.contracts.set(contract.symbol, contract);
     return contract;

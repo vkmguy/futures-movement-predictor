@@ -29,7 +29,9 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
 - **Yahoo Finance Service**: Daily closing price data via yahoo-finance2 package
 - **Nightly Scheduler**: Automated market close calculations (5:30 PM ET)
 - **API Routes**: RESTful endpoints for contracts, predictions, and historical data
-- **Volatility Engine**: Implements σ_daily = σ_weekly / √5 conversion formula
+- **Volatility Engine**: Implements σ_daily = σ_weekly / √N where N = days remaining until expiration
+- **Expiration Calendar**: Contract-specific expiration rules (equity indices vs commodities)
+- **Trading Days Calculator**: Excludes weekends and US market holidays from expiration calculations
 
 ### Frontend (`client/src/`)
 - **Pages**: Dashboard (`/`), Analytics (`/analytics`), Predictions (`/predictions`), Backtesting (`/backtesting`), Alerts (`/alerts`), Weekly Tracker (`/weekly-tracker`), Historical (`/historical`)
@@ -58,9 +60,18 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
 - **Nightly Scheduler** ✅:
   - Automated daily calculations after market close (5:30 PM ET)
   - Syncs Yahoo Finance prices and updates contract data
-  - Calculates daily expected moves using σ_daily = σ_weekly / √5
+  - Calculates daily expected moves using σ_daily = σ_weekly / √N (N = days remaining)
   - Stores historical data in PostgreSQL database
   - Runs automatically Monday-Friday, skips weekends
+- **Dynamic Volatility Scaling** ✅ (October 12, 2025):
+  - Contract-specific expiration tracking with σ_daily = σ_weekly / √N formula
+  - Equity indices (/NQ, /ES, /YM, /RTY): Third Friday expiration rule, currently 48 days (√48 = 6.928)
+  - Commodities (/GC): Third-to-last business day rule, currently 13 days (√13 = 3.606)
+  - Commodities (/CL): 3 business days before 25th of prior month, currently 7 days (√7 = 2.646)
+  - Trading days calculator excludes weekends and 2025 US market holidays
+  - Expiration week warning when daysRemaining ≤ 5
+  - UI displays: Contract type badges, days to expiration, dynamic scaling factors
+  - Mock data initialized with expiration fields for immediate display
 - **Historical Dashboard** ✅ (route: `/historical`):
   - Displays accumulated daily expected moves (never deleted)
   - Filter by contract or view all contracts

@@ -2,6 +2,7 @@ import { storage } from "./storage";
 import { getAllLastTradedPrices } from "./yahoo-finance";
 import { getMarketStatus } from "./market-hours";
 import { insertHistoricalDailyExpectedMovesSchema } from "@shared/schema";
+import { getContractExpirationInfo, calculateDynamicDailyVolatility } from "./expiration-calendar";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 let lastRunDate: string | null = null;
@@ -49,7 +50,7 @@ export async function runNightlyCalculation() {
     
     console.log(`✅ Received ${quotes.length} quotes from Yahoo Finance`);
     
-    // Step 2: Update all contracts with latest prices
+    // Step 2: Update all contracts with latest prices and expiration data
     for (const quote of quotes) {
       const contract = await storage.getContractBySymbol(quote.symbol);
       if (!contract) {
@@ -57,18 +58,29 @@ export async function runNightlyCalculation() {
         continue;
       }
       
-      // Calculate daily volatility: σ_daily = σ_weekly / √5
-      const dailyVolatility = contract.weeklyVolatility / Math.sqrt(5);
+      // Get expiration information for this contract
+      const expirationInfo = getContractExpirationInfo(quote.symbol, new Date());
       
-      // Update contract with latest price data
+      // Calculate dynamic daily volatility: σ_daily = σ_weekly / √N
+      const dailyVolatility = calculateDynamicDailyVolatility(
+        contract.weeklyVolatility,
+        expirationInfo.daysRemaining
+      );
+      
+      // Update contract with latest price data and expiration info
       await storage.updateContract(quote.symbol, {
         currentPrice: quote.regularMarketPrice,
         previousClose: quote.regularMarketPreviousClose,
         dailyChange: quote.regularMarketChange,
         dailyChangePercent: quote.regularMarketChangePercent,
+        dailyVolatility,
+        contractType: expirationInfo.contractType,
+        expirationDate: expirationInfo.expirationDate,
+        daysRemaining: expirationInfo.daysRemaining,
+        isExpirationWeek: expirationInfo.isExpirationWeek ? 1 : 0,
       });
       
-      console.log(`📈 Updated ${quote.symbol}: $${quote.regularMarketPrice.toFixed(2)}`);
+      console.log(`📈 Updated ${quote.symbol}: $${quote.regularMarketPrice.toFixed(2)} (${expirationInfo.daysRemaining} days to expiration)`);
     }
     
     // Step 3: Calculate next day expected moves based on updated data
@@ -79,8 +91,8 @@ export async function runNightlyCalculation() {
       const contract = await storage.getContractBySymbol(quote.symbol);
       if (!contract) continue;
       
-      // Calculate daily volatility
-      const dailyVolatility = contract.weeklyVolatility / Math.sqrt(5);
+      // Get the updated daily volatility from contract (now using dynamic N)
+      const dailyVolatility = contract.dailyVolatility;
       
       // Calculate expected move ranges for next trading day
       const expectedHigh = quote.regularMarketPrice + (quote.regularMarketPrice * dailyVolatility);
@@ -104,7 +116,8 @@ export async function runNightlyCalculation() {
       const created = await storage.createHistoricalDailyMoves(validatedData);
       results.push(created);
       
-      console.log(`✨ ${quote.symbol} Expected: $${expectedLow.toFixed(2)} - $${expectedHigh.toFixed(2)}`);
+      const daysRemainingInfo = contract.daysRemaining ? ` (√${contract.daysRemaining} scaling)` : '';
+      console.log(`✨ ${quote.symbol} Expected: $${expectedLow.toFixed(2)} - $${expectedHigh.toFixed(2)}${daysRemainingInfo}`);
     }
     
     // Mark this run as completed

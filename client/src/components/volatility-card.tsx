@@ -6,11 +6,14 @@ interface VolatilityCardProps {
   symbol: string;
   weeklyVolatility: number;
   dailyVolatility: number;
+  daysRemaining?: number | null;
 }
 
-export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility }: VolatilityCardProps) {
+export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, daysRemaining }: VolatilityCardProps) {
   const volatilityLevel = dailyVolatility < 0.01 ? "Low" : dailyVolatility < 0.02 ? "Moderate" : "High";
   const progressValue = Math.min((dailyVolatility / 0.03) * 100, 100);
+  const N = daysRemaining ?? 5; // Default to 5 if not provided
+  const scalingFactor = Math.sqrt(N);
   
   return (
     <Card data-testid={`card-volatility-${symbol}`}>
@@ -29,7 +32,9 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility }: Vo
           <Progress value={progressValue} className="h-2" />
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Level: {volatilityLevel}</span>
-            <span className="text-xs text-muted-foreground">σ_daily = σ_weekly / √5</span>
+            <span className="text-xs text-muted-foreground font-mono">
+              σ_daily = σ_weekly / √{N}
+            </span>
           </div>
         </div>
         
@@ -41,8 +46,8 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility }: Vo
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Conversion</span>
-            <span className="text-sm font-mono font-semibold">÷ 2.236</span>
+            <span className="text-xs text-muted-foreground">Scaling Factor</span>
+            <span className="text-sm font-mono font-semibold">÷ {scalingFactor.toFixed(3)}</span>
           </div>
         </div>
       </CardContent>

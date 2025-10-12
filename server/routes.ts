@@ -165,11 +165,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid input parameters" });
       }
 
-      // Use advanced volatility model
+      // Get contract to check days remaining
+      const contract = await storage.getContractBySymbol(contractSymbol);
+      const daysRemaining = contract?.daysRemaining ?? undefined;
+
+      // Use advanced volatility model with dynamic scaling
       const volResult = calculateVolatility(
         model as 'standard' | 'garch' | 'ewma',
         weeklyVolatility,
         recentPriceChange,
+        undefined, // previousVolatility
+        daysRemaining
       );
 
       const dailyMove = currentPrice * volResult.dailyVolatility;

@@ -106,6 +106,7 @@ export default function Dashboard() {
             symbol={contract.symbol}
             weeklyVolatility={contract.weeklyVolatility}
             dailyVolatility={contract.dailyVolatility}
+            daysRemaining={contract.daysRemaining}
           />
         ))}
       </div>
