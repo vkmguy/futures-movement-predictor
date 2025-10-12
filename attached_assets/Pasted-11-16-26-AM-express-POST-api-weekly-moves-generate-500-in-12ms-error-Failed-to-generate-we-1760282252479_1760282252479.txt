@@ -1,0 +1,45 @@
+11:16:26 AM [express] POST /api/weekly-moves/generate 500 in 12ms :: {"error":"Failed to generate wee…
+futures-web         | Error generating weekly moves: ErrorEvent {
+futures-web         |   [Symbol(kTarget)]: WebSocket {
+futures-web         |     _events: [Object: null prototype] {
+futures-web         |       error: [Function],
+futures-web         |       message: [Function],
+futures-web         |       close: [Function],
+futures-web         |       open: [Function]
+futures-web         |     },
+futures-web         |     _eventsCount: 4,
+futures-web         |     _maxListeners: undefined,
+futures-web         |     _binaryType: 'arraybuffer',
+futures-web         |     _closeCode: 1006,
+futures-web         |     _closeFrameReceived: false,
+futures-web         |     _closeFrameSent: false,
+futures-web         |     _closeMessage: <Buffer >,
+futures-web         |     _closeTimer: null,
+futures-web         |     _errorEmitted: true,
+futures-web         |     _extensions: {},
+futures-web         |     _paused: false,
+futures-web         |     _protocol: '',
+futures-web         |     _readyState: 3,
+futures-web         |     _receiver: null,
+futures-web         |     _sender: null,
+futures-web         |     _socket: null,
+futures-web         |     _bufferedAmount: 0,
+futures-web         |     _isServer: false,
+futures-web         |     _redirects: 0,
+futures-web         |     _autoPong: true,
+futures-web         |     _url: 'wss://postgres/v2',
+futures-web         |     _req: null,
+futures-web         |     [Symbol(shapeMode)]: false,
+futures-web         |     [Symbol(kCapture)]: false
+futures-web         |   },
+futures-web         |   [Symbol(kType)]: 'error',
+futures-web         |   [Symbol(kError)]: Error: connect ECONNREFUSED 172.19.0.2:443
+futures-web         |       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+futures-web         |     errno: -111,
+futures-web         |     code: 'ECONNREFUSED',
+futures-web         |     syscall: 'connect',
+futures-web         |     address: '172.19.0.2',
+futures-web         |     port: 443
+futures-web         |   },
+futures-web         |   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.19.0.2:443'
+futures-web         | }
