@@ -48,6 +48,10 @@ COPY --from=builder --chown=nodejs:nodejs /app/server/public ./server/public
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
 
+# Copy files required for database migrations
+COPY --from=builder --chown=nodejs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=builder --chown=nodejs:nodejs /app/shared ./shared
+
 # Set environment variables
 ENV NODE_ENV=production \
     PORT=5000 \

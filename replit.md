@@ -150,10 +150,56 @@ Provides traders and analysts with data-driven predictions for Nasdaq 100 (/NQ),
 - Keep API routes thin with storage layer handling logic
 - Use TanStack Query for all data fetching with proper loading states
 
+## Deployment Options
+
+### Replit Development (Current)
+- Running on Replit platform with managed PostgreSQL
+- Automatic workflow restart on code changes
+- Development environment with hot reload
+
+### Docker Deployment (Production) ✅ (October 12, 2025)
+Complete Docker containerization setup for production deployment:
+
+**Architecture**:
+- Multi-stage Dockerfile with optimized builds (deps → builder → runtime)
+- 4-service docker-compose stack:
+  - `web`: Express API + WebSocket + frontend (port 5000)
+  - `scheduler`: Dedicated nightly calculation worker
+  - `postgres`: PostgreSQL 16 with persistent volumes
+  - `migrations`: One-shot database migration service
+- Non-root user execution for security
+- Tini for proper signal handling
+- Health check endpoints for monitoring
+
+**Files Created**:
+- `Dockerfile` - Multi-stage build with Node 20 Alpine
+- `docker-compose.yml` - Complete service orchestration
+- `.dockerignore` - Optimized build context
+- `.env.example` - Environment variable documentation
+- `DOCKER-DEPLOYMENT.md` - Comprehensive deployment guide
+
+**Features**:
+- Scheduler isolation (SCHEDULER_ENABLED flag prevents duplicate runs)
+- Health checks for all services
+- Automatic database migrations on startup
+- Volume persistence for PostgreSQL data
+- Production-ready with secrets management
+- Horizontal scaling support for web service
+
+**Quick Start**:
+```bash
+cp .env.example .env
+# Edit .env with production secrets
+docker-compose up -d
+# Access at http://localhost:5000
+```
+
+See `DOCKER-DEPLOYMENT.md` for complete deployment instructions, security hardening, monitoring, and troubleshooting guide.
+
 ## Future Enhancements
 - Live market data API integration (Tradovate, TradeStation)
-- Backtesting module for prediction accuracy validation
+- Kubernetes deployment manifests
+- CI/CD pipeline (GitHub Actions)
 - Automated alerts for significant predicted movements
-- Export functionality for reports and analysis
-- Advanced volatility models (GARCH, implied volatility)
 - User authentication and personalized dashboards
+- Multi-region deployment support
