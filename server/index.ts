@@ -38,6 +38,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize storage with real Yahoo Finance data
+  const { storage } = await import('./storage');
+  await storage.initializeWithRealData();
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

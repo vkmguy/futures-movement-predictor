@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { ContractCard } from "@/components/contract-card";
 import { VolatilityCard } from "@/components/volatility-card";
 import { PredictionCard } from "@/components/prediction-card";
@@ -8,12 +8,16 @@ import { ContractSelector } from "@/components/contract-selector";
 import { ExportMenu } from "@/components/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { exportToCSV, exportToJSON, prepareContractsForExport, preparePredictionsForExport, prepareHistoricalForExport } from "@/lib/export-utils";
 import type { FuturesContract, DailyPrediction, HistoricalPrice } from "@shared/schema";
 
 export default function Dashboard() {
   const [selectedContract, setSelectedContract] = useState<string>("ALL");
+  const { toast } = useToast();
 
   const { data: contracts, isLoading: contractsLoading } = useQuery<FuturesContract[]>({
     queryKey: ['/api/contracts'],
@@ -25,6 +29,33 @@ export default function Dashboard() {
 
   const { data: historicalData, isLoading: historicalLoading } = useQuery<HistoricalPrice[]>({
     queryKey: ['/api/historical', selectedContract],
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/sync-yahoo-finance', {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to sync Yahoo Finance data');
+      }
+      return await response.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
+      toast({
+        title: "Data Refreshed",
+        description: `Successfully synced ${data.data?.length || 0} contracts with Yahoo Finance`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Refresh Failed",
+        description: error.message || "Failed to sync Yahoo Finance data",
+      });
+    },
   });
 
   const filteredContracts = selectedContract === "ALL" 
@@ -80,10 +111,20 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">Futures Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Real-time price movements and daily predictions
+            Live Yahoo Finance data with automated nightly updates
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            data-testid="button-refresh-data"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncMutation.isPending ? 'Syncing...' : 'Refresh Data'}
+          </Button>
           <ContractSelector value={selectedContract} onValueChange={setSelectedContract} />
           <ExportMenu 
             onExportCSV={handleExportCSV} 

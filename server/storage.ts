@@ -65,11 +65,59 @@ export class MemStorage implements IStorage {
     this.alerts = new Map();
     this.weeklyMoves = new Map();
     this.historicalDailyMoves = new Map();
-    this.initializeMockData();
+    this.initializeContractTemplates();
   }
 
-  private initializeMockData() {
-    // Initialize with mock E-mini futures contracts (realistic 2025 price levels)
+  // Async initialization method to fetch real Yahoo Finance data
+  async initializeWithRealData() {
+    try {
+      const { getAllLastTradedPrices } = await import('./yahoo-finance');
+      const { getContractExpirationInfo, calculateDynamicDailyVolatility } = await import('./expiration-calendar');
+      
+      console.log("📡 Fetching real Yahoo Finance data for initialization...");
+      const quotes = await getAllLastTradedPrices();
+      
+      if (quotes.length === 0) {
+        console.warn("⚠️  No Yahoo Finance data available, using template data");
+        return;
+      }
+      
+      console.log(`✅ Received ${quotes.length} quotes from Yahoo Finance`);
+      
+      // Update contracts with real Yahoo Finance data
+      for (const quote of quotes) {
+        const contract = this.contracts.get(quote.symbol);
+        if (contract) {
+          const expirationInfo = getContractExpirationInfo(quote.symbol, new Date());
+          const dailyVolatility = calculateDynamicDailyVolatility(
+            contract.weeklyVolatility,
+            expirationInfo.daysRemaining
+          );
+          
+          contract.currentPrice = quote.regularMarketPrice;
+          contract.previousClose = quote.regularMarketPreviousClose;
+          contract.dailyChange = quote.regularMarketChange;
+          contract.dailyChangePercent = quote.regularMarketChangePercent;
+          contract.dailyVolatility = dailyVolatility;
+          contract.contractType = expirationInfo.contractType;
+          contract.expirationDate = expirationInfo.expirationDate;
+          contract.daysRemaining = expirationInfo.daysRemaining;
+          contract.isExpirationWeek = expirationInfo.isExpirationWeek ? 1 : 0;
+          contract.updatedAt = new Date();
+          
+          console.log(`  📊 ${quote.symbol}: $${quote.regularMarketPrice.toFixed(2)} (${expirationInfo.daysRemaining} days to expiration)`);
+        }
+      }
+      
+      console.log("✅ Dashboard initialized with real Yahoo Finance data");
+    } catch (error) {
+      console.error("❌ Failed to initialize with real data:", error);
+      console.log("⚠️  Using template data as fallback");
+    }
+  }
+
+  private initializeContractTemplates() {
+    // Initialize contract templates (will be updated with real Yahoo Finance data)
     const mockContracts: InsertFuturesContract[] = [
       {
         symbol: "/NQ",
