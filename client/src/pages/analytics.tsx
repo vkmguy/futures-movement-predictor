@@ -166,6 +166,14 @@ export default function Analytics() {
                     borderRadius: '6px',
                     color: 'hsl(var(--popover-foreground))',
                   }}
+                  labelStyle={{
+                    color: 'hsl(var(--popover-foreground))',
+                    fontWeight: '600',
+                  }}
+                  itemStyle={{
+                    color: 'hsl(var(--popover-foreground))',
+                    fontWeight: '600',
+                  }}
                 />
                 <Bar 
                   dataKey="change" 
