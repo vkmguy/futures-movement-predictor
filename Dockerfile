@@ -41,8 +41,8 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 # Copy built assets from builder
+# Vite builds frontend to dist/public, and esbuild bundles server to dist/index.js
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/server/public ./server/public
 
 # Copy production dependencies only
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
