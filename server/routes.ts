@@ -10,6 +10,15 @@ import { getLastTradedPrice, getAllLastTradedPrices } from "./yahoo-finance";
 import { runNightlyCalculation } from "./nightly-scheduler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for Docker/Kubernetes
+  app.get("/health", async (req, res) => {
+    res.status(200).json({ 
+      status: "healthy", 
+      timestamp: new Date().toISOString(),
+      service: "futures-predictor"
+    });
+  });
+
   // Get market status
   app.get("/api/market/status", async (req, res) => {
     try {

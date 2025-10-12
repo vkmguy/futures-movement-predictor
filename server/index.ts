@@ -69,7 +69,14 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Start the nightly scheduler for automatic data collection
-    startNightlyScheduler();
+    // Start the nightly scheduler only if SCHEDULER_ENABLED is true
+    // This prevents duplicate scheduler runs in multi-container deployments
+    const schedulerEnabled = process.env.SCHEDULER_ENABLED !== 'false';
+    if (schedulerEnabled) {
+      log('Starting nightly scheduler...');
+      startNightlyScheduler();
+    } else {
+      log('Scheduler disabled (SCHEDULER_ENABLED=false)');
+    }
   });
 })();
