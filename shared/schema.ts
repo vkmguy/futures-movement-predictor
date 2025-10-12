@@ -169,3 +169,29 @@ export const insertHistoricalDailyExpectedMovesSchema = createInsertSchema(histo
 
 export type InsertHistoricalDailyExpectedMoves = z.infer<typeof insertHistoricalDailyExpectedMovesSchema>;
 export type HistoricalDailyExpectedMoves = typeof historicalDailyExpectedMoves.$inferSelect;
+
+// IV Batch Update Schema
+const VALID_CONTRACT_SYMBOLS = ["/NQ", "/ES", "/YM", "/RTY", "/GC", "/CL"] as const;
+
+export const ivBatchUpdateSchema = z.object({
+  updates: z.array(
+    z.object({
+      symbol: z.enum(VALID_CONTRACT_SYMBOLS, {
+        errorMap: () => ({ message: "Symbol must be one of: /NQ, /ES, /YM, /RTY, /GC, /CL" })
+      }),
+      weeklyVolatility: z.number()
+        .min(0, "Weekly volatility must be at least 0")
+        .max(1, "Weekly volatility must be at most 1")
+    })
+  )
+    .min(1, "At least one update is required")
+    .refine(
+      (updates) => {
+        const symbols = updates.map(u => u.symbol);
+        return symbols.length === new Set(symbols).size;
+      },
+      { message: "Duplicate symbols are not allowed" }
+    )
+});
+
+export type IVBatchUpdate = z.infer<typeof ivBatchUpdateSchema>;

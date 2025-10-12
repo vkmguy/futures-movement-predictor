@@ -76,6 +76,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch update IV (weekly volatility) values
+  app.post("/api/contracts/batch-update-iv", async (req, res) => {
+    try {
+      const { ivBatchUpdateSchema } = await import("@shared/schema");
+      
+      console.log("📊 Received batch IV update request:", JSON.stringify(req.body, null, 2));
+      
+      // Validate request body with Zod schema
+      const validationResult = ivBatchUpdateSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        console.error("❌ Validation failed:", validationResult.error.errors);
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: validationResult.error.errors 
+        });
+      }
+      
+      const { updates } = validationResult.data;
+      console.log("✅ Validated updates:", updates);
+      
+      // Perform batch update
+      const updatedContracts = await storage.batchUpdateVolatility(updates);
+      
+      // Ensure at least one contract was updated
+      if (updatedContracts.length === 0) {
+        return res.status(400).json({ 
+          error: "No contracts were updated",
+          details: "All provided symbols may be invalid or not found in the system"
+        });
+      }
+      
+      // Regenerate predictions for all updated contracts (replace, not accumulate)
+      for (const contract of updatedContracts) {
+        const dailyMove = contract.currentPrice * contract.dailyVolatility;
+        
+        // Create/replace prediction (storage.createPrediction overwrites by symbol in MemStorage)
+        await storage.createPrediction({
+          contractSymbol: contract.symbol,
+          currentPrice: contract.currentPrice,
+          predictedMin: contract.currentPrice - dailyMove,
+          predictedMax: contract.currentPrice + dailyMove,
+          dailyVolatility: contract.dailyVolatility,
+          weeklyVolatility: contract.weeklyVolatility,
+          confidence: 0.85,
+          openInterestChange: 0,
+          trend: "neutral",
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        updatedContracts,
+        message: `Successfully updated IV for ${updatedContracts.length} contract${updatedContracts.length > 1 ? 's' : ''}: ${updatedContracts.map(c => c.symbol).join(', ')}` 
+      });
+    } catch (error: any) {
+      console.error("Batch IV update error:", error);
+      res.status(500).json({ error: error.message || "Failed to batch update IV" });
+    }
+  });
+
   // Get historical prices
   app.get("/api/historical/:symbol", async (req, res) => {
     try {

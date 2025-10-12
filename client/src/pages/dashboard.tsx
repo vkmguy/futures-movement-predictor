@@ -6,6 +6,7 @@ import { PredictionCard } from "@/components/prediction-card";
 import { PriceChart } from "@/components/price-chart";
 import { ContractSelector } from "@/components/contract-selector";
 import { ExportMenu } from "@/components/export-menu";
+import { IVInputDialog } from "@/components/iv-input-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -125,6 +126,7 @@ export default function Dashboard() {
             <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
             {syncMutation.isPending ? 'Syncing...' : 'Refresh Data'}
           </Button>
+          <IVInputDialog contracts={contracts} />
           <ContractSelector value={selectedContract} onValueChange={setSelectedContract} />
           <ExportMenu 
             onExportCSV={handleExportCSV} 

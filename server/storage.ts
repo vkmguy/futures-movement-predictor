@@ -20,6 +20,7 @@ export interface IStorage {
   getContractBySymbol(symbol: string): Promise<FuturesContract | undefined>;
   createContract(contract: InsertFuturesContract): Promise<FuturesContract>;
   updateContract(symbol: string, contract: Partial<InsertFuturesContract>): Promise<FuturesContract | undefined>;
+  batchUpdateVolatility(updates: { symbol: string; weeklyVolatility: number }[]): Promise<FuturesContract[]>;
   
   // Historical Prices
   getHistoricalPrices(symbol: string, limit?: number): Promise<HistoricalPrice[]>;
@@ -318,6 +319,38 @@ export class MemStorage implements IStorage {
     };
     this.contracts.set(symbol, updated);
     return updated;
+  }
+
+  async batchUpdateVolatility(updates: { symbol: string; weeklyVolatility: number }[]): Promise<FuturesContract[]> {
+    const updatedContracts: FuturesContract[] = [];
+    
+    for (const update of updates) {
+      const existing = this.contracts.get(update.symbol);
+      if (existing) {
+        console.log(`📈 Updating ${update.symbol}: ${existing.weeklyVolatility} → ${update.weeklyVolatility}`);
+        
+        // Recalculate dailyVolatility when weeklyVolatility changes
+        const { calculateDynamicDailyVolatility } = await import('./expiration-calendar');
+        const dailyVolatility = calculateDynamicDailyVolatility(
+          update.weeklyVolatility,
+          existing.daysRemaining || 5
+        );
+        
+        const updated: FuturesContract = {
+          ...existing,
+          weeklyVolatility: update.weeklyVolatility,
+          dailyVolatility,
+          updatedAt: new Date(),
+        };
+        this.contracts.set(update.symbol, updated);
+        updatedContracts.push(updated);
+        console.log(`✅ Updated ${update.symbol}: weeklyVol=${updated.weeklyVolatility}, dailyVol=${updated.dailyVolatility}`);
+      } else {
+        console.warn(`⚠️  Contract ${update.symbol} not found, skipping`);
+      }
+    }
+    
+    return updatedContracts;
   }
 
   async getHistoricalPrices(symbol: string, limit: number = 20): Promise<HistoricalPrice[]> {
