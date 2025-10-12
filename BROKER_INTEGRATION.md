@@ -2,29 +2,31 @@
 
 ## Current Data Status
 
-### Mock Data vs Real Market Data
-The application currently uses **simulated/mock data** for futures contracts:
-- **Data Source**: In-memory storage with manually updated prices
-- **WebSocket**: Simulates price movements using random walk algorithm
-- **Price Updates**: Prices from October 10, 2025 market close (manually entered)
-- **Limitations**: Not real-time, not connected to actual market feeds
+### Real Market Data Integration ✅
+The application uses **Yahoo Finance** for all futures contract pricing:
+- **Data Source**: Yahoo Finance API via yahoo-finance2 package (FREE)
+- **Price Updates**: 
+  - Automatic: Nightly scheduler runs after market close (5:30 PM ET)
+  - Manual: Refresh button on dashboard for immediate updates
+  - On-demand: User-triggered sync from Historical Dashboard
+- **WebSocket**: Simulates real-time price movements for visualization (not connected to live feeds)
+- **All 6 Contracts Supported**: /NQ, /ES, /YM, /RTY, /GC, /CL
 
-### Current Contract Prices (October 10, 2025)
-Based on publicly available settlement data:
+### Current Contract Data Sources
 
-| Symbol | Contract | Current Price | Source |
-|--------|----------|---------------|--------|
-| /NQ | E-mini Nasdaq-100 | 24,726.75 | User provided |
-| /ES | E-mini S&P 500 | 6,595.25 | Yahoo Finance |
-| /YM | E-mini Dow Jones | 45,706.00 | Yahoo Finance |
-| /RTY | E-mini Russell 2000 | 2,234.20 | Yahoo Finance |
-| /GC | Gold Futures | 4,000.40 | Yahoo Finance |
-| /CL | Crude Oil Futures | 58.90 | Yahoo Finance |
+| Symbol | Contract | Yahoo Symbol | Data Source | Update Frequency |
+|--------|----------|--------------|-------------|------------------|
+| /NQ | E-mini Nasdaq-100 | NQ=F | **Yahoo Finance** | Nightly + On-demand |
+| /ES | E-mini S&P 500 | ES=F | **Yahoo Finance** | Nightly + On-demand |
+| /YM | E-mini Dow Jones | YM=F | **Yahoo Finance** | Nightly + On-demand |
+| /RTY | E-mini Russell 2000 | RTY=F | **Yahoo Finance** | Nightly + On-demand |
+| /GC | Gold Futures | GC=F | **Yahoo Finance** | Nightly + On-demand |
+| /CL | Crude Oil Futures | CL=F | **Yahoo Finance** | Nightly + On-demand |
 
-**Note**: Different sources may show different prices due to:
-- Different contract months (Dec 2025 vs continuous)
-- Bid/Ask vs Last price
-- Delayed quotes vs real-time quotes
+**Note**: Yahoo Finance provides delayed quotes (15-20 minutes). Prices may differ from real-time feeds due to:
+- Quote delays (15-20 min behind market)
+- Different contract months (Dec 2025 vs front month)
+- Bid/Ask vs Last traded price
 
 ---
 
