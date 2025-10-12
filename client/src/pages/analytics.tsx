@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, Activity, DollarSign } from "lucide-react";
 import { ExportMenu } from "@/components/export-menu";
@@ -169,10 +169,16 @@ export default function Analytics() {
                 />
                 <Bar 
                   dataKey="change" 
-                  fill="hsl(var(--primary))" 
                   name="Daily Change %"
                   radius={[4, 4, 0, 0]}
-                />
+                >
+                  {performanceData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.change >= 0 ? "hsl(var(--primary))" : "hsl(var(--destructive))"}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
