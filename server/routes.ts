@@ -513,6 +513,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/weekly-moves/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteWeeklyMoves(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Weekly moves not found" });
+      }
+      res.json({ success: true, message: "Weekly moves deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting weekly moves:", error);
+      res.status(500).json({ error: "Failed to delete weekly moves" });
+    }
+  });
+
   // Historical Daily Expected Moves Routes
   
   // Get all historical daily moves

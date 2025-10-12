@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, TrendingUp, TrendingDown, RefreshCw, Check } from "lucide-react";
+import { Calendar, TrendingUp, TrendingDown, RefreshCw, Check, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { WeeklyExpectedMoves, FuturesContract } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +57,19 @@ export default function WeeklyTracker() {
       toast({
         title: "Actual Close Updated",
         description: "Price recorded successfully",
+      });
+    },
+  });
+
+  const deleteWeeklyMovesMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest('DELETE', `/api/weekly-moves/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/weekly-moves'] });
+      toast({
+        title: "Weekly Data Deleted",
+        description: "Successfully removed weekly moves",
       });
     },
   });
@@ -126,19 +139,31 @@ export default function WeeklyTracker() {
             <Card key={moves.id} data-testid={`card-weekly-${moves.contractSymbol}`}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <CardTitle className="font-mono text-2xl">{moves.contractSymbol}</CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
                       Week Starting: {new Date(moves.weekStartDate).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge variant="outline" className="font-mono">
-                      IV: {(moves.impliedVolatility * 100).toFixed(1)}%
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      Open: ${moves.weekOpenPrice.toFixed(2)}
-                    </span>
+                  <div className="flex items-start gap-3">
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge variant="outline" className="font-mono">
+                        IV: {(moves.impliedVolatility * 100).toFixed(1)}%
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        Open: ${moves.weekOpenPrice.toFixed(2)}
+                      </span>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteWeeklyMovesMutation.mutate(moves.id)}
+                      disabled={deleteWeeklyMovesMutation.isPending}
+                      data-testid={`button-delete-weekly-${moves.contractSymbol}`}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>

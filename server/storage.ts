@@ -12,9 +12,12 @@ import {
   type HistoricalDailyExpectedMoves,
   type InsertHistoricalDailyExpectedMoves,
   type IvUpdate,
-  type InsertIvUpdate
+  type InsertIvUpdate,
+  weeklyExpectedMoves
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Futures Contracts
@@ -43,8 +46,10 @@ export interface IStorage {
   // Weekly Expected Moves
   getWeeklyMoves(contractSymbol: string): Promise<WeeklyExpectedMoves | undefined>;
   getAllWeeklyMoves(): Promise<WeeklyExpectedMoves[]>;
+  getWeeklyMovesByWeek(contractSymbol: string, weekStartDate: Date): Promise<WeeklyExpectedMoves | undefined>;
   createWeeklyMoves(moves: InsertWeeklyExpectedMoves): Promise<WeeklyExpectedMoves>;
   updateWeeklyMoves(contractSymbol: string, update: Partial<WeeklyExpectedMoves>): Promise<WeeklyExpectedMoves | undefined>;
+  deleteWeeklyMoves(id: string): Promise<boolean>;
 
   // Historical Daily Expected Moves
   getAllHistoricalDailyMoves(): Promise<HistoricalDailyExpectedMoves[]>;
@@ -441,40 +446,80 @@ export class MemStorage implements IStorage {
   }
 
   async getWeeklyMoves(contractSymbol: string): Promise<WeeklyExpectedMoves | undefined> {
-    return this.weeklyMoves.get(contractSymbol);
+    // Get the most recent weekly move for this contract
+    const results = await db
+      .select()
+      .from(weeklyExpectedMoves)
+      .where(eq(weeklyExpectedMoves.contractSymbol, contractSymbol))
+      .orderBy(desc(weeklyExpectedMoves.weekStartDate))
+      .limit(1);
+    
+    return results[0];
   }
 
   async getAllWeeklyMoves(): Promise<WeeklyExpectedMoves[]> {
-    return Array.from(this.weeklyMoves.values());
+    // Get all weekly moves, grouped by most recent per contract
+    const results = await db
+      .select()
+      .from(weeklyExpectedMoves)
+      .orderBy(desc(weeklyExpectedMoves.weekStartDate));
+    
+    // Filter to keep only the most recent entry per contract
+    const latestByContract = new Map<string, WeeklyExpectedMoves>();
+    for (const move of results) {
+      if (!latestByContract.has(move.contractSymbol)) {
+        latestByContract.set(move.contractSymbol, move);
+      }
+    }
+    
+    return Array.from(latestByContract.values());
+  }
+
+  async getWeeklyMovesByWeek(contractSymbol: string, weekStartDate: Date): Promise<WeeklyExpectedMoves | undefined> {
+    const dateStr = weekStartDate.toISOString().split('T')[0];
+    const results = await db
+      .select()
+      .from(weeklyExpectedMoves)
+      .where(
+        and(
+          eq(weeklyExpectedMoves.contractSymbol, contractSymbol),
+          eq(weeklyExpectedMoves.weekStartDate, weekStartDate)
+        )
+      )
+      .limit(1);
+    
+    return results[0];
   }
 
   async createWeeklyMoves(insertMoves: InsertWeeklyExpectedMoves): Promise<WeeklyExpectedMoves> {
-    const id = randomUUID();
-    const moves: WeeklyExpectedMoves = {
-      ...insertMoves,
-      id,
-      mondayActualClose: insertMoves.mondayActualClose ?? null,
-      tuesdayActualClose: insertMoves.tuesdayActualClose ?? null,
-      wednesdayActualClose: insertMoves.wednesdayActualClose ?? null,
-      thursdayActualClose: insertMoves.thursdayActualClose ?? null,
-      fridayActualClose: insertMoves.fridayActualClose ?? null,
-      updatedAt: new Date(),
-    };
-    this.weeklyMoves.set(moves.contractSymbol, moves);
-    return moves;
+    const results = await db
+      .insert(weeklyExpectedMoves)
+      .values(insertMoves)
+      .returning();
+    
+    return results[0];
   }
 
   async updateWeeklyMoves(contractSymbol: string, update: Partial<WeeklyExpectedMoves>): Promise<WeeklyExpectedMoves | undefined> {
-    const existing = this.weeklyMoves.get(contractSymbol);
+    const existing = await this.getWeeklyMoves(contractSymbol);
     if (!existing) return undefined;
 
-    const updated: WeeklyExpectedMoves = {
-      ...existing,
-      ...update,
-      updatedAt: new Date(),
-    };
-    this.weeklyMoves.set(contractSymbol, updated);
-    return updated;
+    const results = await db
+      .update(weeklyExpectedMoves)
+      .set({ ...update, updatedAt: new Date() })
+      .where(eq(weeklyExpectedMoves.id, existing.id))
+      .returning();
+    
+    return results[0];
+  }
+
+  async deleteWeeklyMoves(id: string): Promise<boolean> {
+    const result = await db
+      .delete(weeklyExpectedMoves)
+      .where(eq(weeklyExpectedMoves.id, id))
+      .returning();
+    
+    return result.length > 0;
   }
 
   async getAllHistoricalDailyMoves(): Promise<HistoricalDailyExpectedMoves[]> {

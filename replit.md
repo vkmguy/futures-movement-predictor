@@ -17,10 +17,10 @@ I prefer detailed explanations and iterative development. Ask before making majo
 -   **Navigation**: Sidebar with market overview and page links.
 
 ### Technical Implementations
--   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves`, and `PriceAlert`.
+-   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), and `PriceAlert`.
 -   **Prediction Models**:
     1.  **Daily Predictions (Dynamic √N Model)**: Uses `σ_daily = σ_weekly / √N` where N is trading days remaining until expiration. This model is applied for short-term trading decisions and is dynamic, changing daily based on contract-specific expiration rules for equity indices and commodities.
-    2.  **Weekly Expected Moves (Standard √5 Model)**: Uses `σ_daily = σ_weekly / √5` for standardized weekly tracking. This model tracks cumulative movement from Monday's week open, providing progressive daily ranges (√1 to √5) for consistent benchmarking.
+    2.  **Weekly Expected Moves (Standard √5 Model)**: Uses `σ_daily = σ_weekly / √5` for standardized weekly tracking. This model tracks cumulative movement from Monday's week open, providing progressive daily ranges (√1 to √5) for consistent benchmarking. **Weekly data is now persisted in PostgreSQL and survives server restarts.**
     3.  **Advanced Volatility Models**: Supports user-selectable **Standard Model** (default, direct conversion), **GARCH(1,1)** (time-weighted, adapts to recent volatility clusters), and **EWMA** (recent prices weighted more heavily) models. All apply dynamic √N expiration-based scaling for daily predictions.
 -   **Expiration Calendar System**: Dynamically calculates trading days remaining until expiration, excluding weekends and US market holidays, based on specific rules for Equity Index, Gold, and Crude Oil futures.
 -   **Nightly Scheduler**: Automated daily calculations after market close (5:30 PM ET) to sync Yahoo Finance prices, update contract data, and calculate daily expected moves, storing historical data in PostgreSQL.
@@ -32,8 +32,8 @@ I prefer detailed explanations and iterative development. Ask before making majo
 ### System Design Choices
 -   **Backend**: Express.js, Node.js, TypeScript.
 -   **Frontend**: React, Wouter (routing), TanStack Query, Tailwind CSS, Shadcn UI.
--   **Storage**: PostgreSQL database with Drizzle ORM for persistent storage and in-memory for runtime data.
--   **API Routes**: RESTful endpoints for contracts, predictions, and historical data.
+-   **Storage**: PostgreSQL database with Drizzle ORM for persistent storage. **Weekly Expected Moves** are now fully database-backed with automatic deduplication (one record per contract per week) and user-controlled deletion.
+-   **API Routes**: RESTful endpoints for contracts, predictions, historical data, and weekly moves (GET, POST, PATCH, DELETE).
 -   **Deployment**: Docker containerization for production, supporting a multi-stage Dockerfile and a 4-service `docker-compose` stack (`web`, `scheduler`, `postgres`, `migrations`) for isolated, secure, and scalable deployment.
 
 ## External Dependencies
