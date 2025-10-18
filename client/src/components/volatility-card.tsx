@@ -18,7 +18,7 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, days
   return (
     <Card data-testid={`card-volatility-${symbol}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
-        <CardTitle className="text-sm font-medium">Volatility Analysis</CardTitle>
+        <CardTitle className="text-sm font-medium">Volatility Analysis - {symbol}</CardTitle>
         <Activity className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent className="space-y-4">
