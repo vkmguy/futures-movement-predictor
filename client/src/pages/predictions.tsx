@@ -15,6 +15,7 @@ import { ExportMenu } from "@/components/export-menu";
 import { exportToCSV, exportToJSON, preparePredictionsForExport } from "@/lib/export-utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DailyPrediction, FuturesContract } from "@shared/schema";
+import { roundToTick } from "@shared/utils";
 
 export default function Predictions() {
   const [volatilityModel, setVolatilityModel] = useState<string>("standard");
@@ -26,6 +27,12 @@ export default function Predictions() {
   const { data: contracts } = useQuery<FuturesContract[]>({
     queryKey: ['/api/contracts'],
   });
+
+  // Create contract lookup map for tick size access
+  const contractsBySymbol = contracts?.reduce((map, contract) => {
+    map[contract.symbol] = contract;
+    return map;
+  }, {} as Record<string, FuturesContract>) || {};
 
   const regeneratePredictionsMutation = useMutation({
     mutationFn: async (model: string) => {
@@ -121,7 +128,13 @@ export default function Predictions() {
 
       <div className="grid grid-cols-1 gap-4">
         {predictions?.map((prediction) => {
-          const range = prediction.predictedMax - prediction.predictedMin;
+          const contract = contractsBySymbol[prediction.contractSymbol];
+          if (!contract) return null;
+          
+          // Round predicted prices to valid tick increments
+          const predictedMin = roundToTick(prediction.predictedMin, contract.tickSize);
+          const predictedMax = roundToTick(prediction.predictedMax, contract.tickSize);
+          const range = predictedMax - predictedMin;
           const rangePercent = (range / prediction.currentPrice) * 100;
 
           return (
@@ -155,13 +168,13 @@ export default function Predictions() {
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground">Min Expected</span>
                     <span className="text-lg font-mono font-semibold text-destructive">
-                      ${prediction.predictedMin.toFixed(2)}
+                      ${predictedMin.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground">Max Expected</span>
                     <span className="text-lg font-mono font-semibold text-primary">
-                      ${prediction.predictedMax.toFixed(2)}
+                      ${predictedMax.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex flex-col gap-1">

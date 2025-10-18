@@ -7,6 +7,7 @@ import { Calendar, TrendingUp, TrendingDown, RefreshCw, Check, Trash2 } from "lu
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { WeeklyExpectedMoves, FuturesContract } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { roundToTick } from "@shared/utils";
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
 type DayOfWeek = typeof DAYS[number];
@@ -21,6 +22,12 @@ export default function WeeklyTracker() {
   const { data: contracts } = useQuery<FuturesContract[]>({
     queryKey: ['/api/contracts'],
   });
+
+  // Create contract lookup map for tick size access
+  const contractsBySymbol = contracts?.reduce((map, contract) => {
+    map[contract.symbol] = contract;
+    return map;
+  }, {} as Record<string, FuturesContract>) || {};
 
   const generateMovesMutation = useMutation({
     mutationFn: async () => {
@@ -171,8 +178,15 @@ export default function WeeklyTracker() {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                   {DAYS.map((day) => {
                     const { dayCapitalized, expectedHigh, expectedLow, actualClose } = getDayData(moves, day);
+                    const contract = contractsBySymbol[moves.contractSymbol];
+                    const tickSize = contract?.tickSize || 0.01;
+                    
+                    // Round expected prices to valid tick increments
+                    const roundedExpectedHigh = roundToTick(expectedHigh, tickSize);
+                    const roundedExpectedLow = roundToTick(expectedLow, tickSize);
+                    
                     const isCurrent = isCurrentDay(day);
-                    const status = getDayStatus(expectedHigh, expectedLow, actualClose);
+                    const status = getDayStatus(roundedExpectedHigh, roundedExpectedLow, actualClose);
                     
                     return (
                       <div 
@@ -193,13 +207,13 @@ export default function WeeklyTracker() {
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-muted-foreground">High</span>
                               <span className="text-sm font-mono text-primary">
-                                ${expectedHigh.toFixed(2)}
+                                ${roundedExpectedHigh.toFixed(2)}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-muted-foreground">Low</span>
                               <span className="text-sm font-mono text-destructive">
-                                ${expectedLow.toFixed(2)}
+                                ${roundedExpectedLow.toFixed(2)}
                               </span>
                             </div>
                           </div>

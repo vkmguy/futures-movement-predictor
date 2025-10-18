@@ -1,14 +1,20 @@
 import { TrendingUp, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { DailyPrediction } from "@shared/schema";
+import type { DailyPrediction, FuturesContract } from "@shared/schema";
+import { roundToTick } from "@shared/utils";
 
 interface PredictionCardProps {
   prediction: DailyPrediction;
+  contract: FuturesContract;
 }
 
-export function PredictionCard({ prediction }: PredictionCardProps) {
-  const range = prediction.predictedMax - prediction.predictedMin;
+export function PredictionCard({ prediction, contract }: PredictionCardProps) {
+  // Round predicted prices to valid tick increments
+  const predictedMin = roundToTick(prediction.predictedMin, contract.tickSize);
+  const predictedMax = roundToTick(prediction.predictedMax, contract.tickSize);
+  
+  const range = predictedMax - predictedMin;
   const rangePercent = (range / prediction.currentPrice) * 100;
   
 
@@ -32,11 +38,11 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-medium" data-testid={`text-min-${prediction.contractSymbol}`}>
-                  ${prediction.predictedMin.toFixed(2)}
+                  ${predictedMin.toFixed(2)}
                 </span>
                 <span className="text-xs text-muted-foreground">→</span>
                 <span className="text-xs font-mono font-medium" data-testid={`text-max-${prediction.contractSymbol}`}>
-                  ${prediction.predictedMax.toFixed(2)}
+                  ${predictedMax.toFixed(2)}
                 </span>
               </div>
             </div>

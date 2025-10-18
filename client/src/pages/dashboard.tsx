@@ -65,6 +65,12 @@ export default function Dashboard() {
 
   // No need for client-side filtering - backend returns filtered predictions
   const filteredPredictions = predictions;
+  
+  // Create contract lookup map for tick size access
+  const contractsBySymbol = contracts?.reduce((map, contract) => {
+    map[contract.symbol] = contract;
+    return map;
+  }, {} as Record<string, FuturesContract>) || {};
 
   if (contractsLoading) {
     return (
@@ -157,9 +163,12 @@ export default function Dashboard() {
         <Skeleton className="h-[200px]" />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredPredictions?.map((prediction) => (
-            <PredictionCard key={prediction.id} prediction={prediction} />
-          ))}
+          {filteredPredictions?.map((prediction) => {
+            const contract = contractsBySymbol[prediction.contractSymbol];
+            return contract ? (
+              <PredictionCard key={prediction.id} prediction={prediction} contract={contract} />
+            ) : null;
+          })}
         </div>
       )}
 
