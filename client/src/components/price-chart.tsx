@@ -13,7 +13,7 @@ export function PriceChart({ data, symbol }: PriceChartProps) {
     price: price.close,
     high: price.high,
     low: price.low,
-  })).reverse();
+  }));
 
   return (
     <Card data-testid={`card-chart-${symbol}`}>
