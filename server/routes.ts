@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema, insertWeeklyExpectedMovesSchema, insertHistoricalDailyExpectedMovesSchema } from "@shared/schema";
+import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema, insertWeeklyExpectedMovesSchema, insertHistoricalDailyExpectedMovesSchema, type HistoricalPrice } from "@shared/schema";
 import { setupMarketSimulator } from "./market-simulator";
 import { calculateVolatility } from "./volatility-models";
 import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek, getWeekStartDate } from "./weekly-calculator";
@@ -213,13 +213,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
       
       if (req.params.symbol === "ALL") {
-        // For ALL, get the first contract's historical data
+        // For ALL, get historical data for all contracts and merge by date
         const contracts = await storage.getAllContracts();
-        if (contracts.length > 0) {
-          const prices = await storage.getHistoricalPrices(contracts[0].symbol, limit);
-          return res.json(prices);
+        if (contracts.length === 0) {
+          return res.json([]);
         }
-        return res.json([]);
+
+        // Fetch historical data for each contract
+        const allHistoricalData: { [symbol: string]: HistoricalPrice[] } = {};
+        for (const contract of contracts) {
+          const prices = await storage.getHistoricalPrices(contract.symbol, limit);
+          allHistoricalData[contract.symbol] = prices;
+        }
+
+        // Merge data by date
+        const dateMap = new Map<string, any>();
+        
+        for (const [symbol, prices] of Object.entries(allHistoricalData)) {
+          for (const price of prices) {
+            const dateKey = new Date(price.date).toISOString().split('T')[0];
+            if (!dateMap.has(dateKey)) {
+              dateMap.set(dateKey, { 
+                date: price.date,
+                dateKey,
+              });
+            }
+            const entry = dateMap.get(dateKey);
+            entry[symbol] = price.close;
+          }
+        }
+
+        // Convert to array and sort by date
+        const mergedData = Array.from(dateMap.values()).sort((a, b) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+        return res.json(mergedData);
       }
       
       const prices = await storage.getHistoricalPrices(req.params.symbol, limit);
