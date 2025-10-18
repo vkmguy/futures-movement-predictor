@@ -147,6 +147,7 @@ export class MemStorage implements IStorage {
         volume: 345678,
         weeklyVolatility: 0.0285,
         dailyVolatility: 0.0127,
+        tickSize: 0.25,
         contractType: "equity_index",
         expirationDate: new Date("2025-12-19"),
         daysRemaining: 48,
@@ -162,6 +163,7 @@ export class MemStorage implements IStorage {
         volume: 2145321,
         weeklyVolatility: 0.0245,
         dailyVolatility: 0.0110,
+        tickSize: 0.25,
         contractType: "equity_index",
         expirationDate: new Date("2025-12-19"),
         daysRemaining: 48,
@@ -177,6 +179,7 @@ export class MemStorage implements IStorage {
         volume: 149700,
         weeklyVolatility: 0.0235,
         dailyVolatility: 0.0105,
+        tickSize: 1.0,
         contractType: "equity_index",
         expirationDate: new Date("2025-12-19"),
         daysRemaining: 48,
@@ -192,6 +195,7 @@ export class MemStorage implements IStorage {
         volume: 15950,
         weeklyVolatility: 0.0325,
         dailyVolatility: 0.0145,
+        tickSize: 0.10,
         contractType: "equity_index",
         expirationDate: new Date("2025-12-19"),
         daysRemaining: 48,
@@ -207,6 +211,7 @@ export class MemStorage implements IStorage {
         volume: 352500,
         weeklyVolatility: 0.0195,
         dailyVolatility: 0.0087,
+        tickSize: 0.10,
         contractType: "commodity",
         expirationDate: new Date("2025-10-29"),
         daysRemaining: 13,
@@ -222,6 +227,7 @@ export class MemStorage implements IStorage {
         volume: 236000,
         weeklyVolatility: 0.0415,
         dailyVolatility: 0.0186,
+        tickSize: 0.01,
         contractType: "commodity",
         expirationDate: new Date("2025-10-22"),
         daysRemaining: 7,
@@ -239,6 +245,7 @@ export class MemStorage implements IStorage {
         expirationDate: contract.expirationDate || null,
         daysRemaining: contract.daysRemaining || null,
         isExpirationWeek: contract.isExpirationWeek ?? 0,
+        tickSize: contract.tickSize ?? 0.01,
       };
       this.contracts.set(contract.symbol, fullContract);
 
@@ -310,6 +317,7 @@ export class MemStorage implements IStorage {
       expirationDate: insertContract.expirationDate || null,
       daysRemaining: insertContract.daysRemaining || null,
       isExpirationWeek: insertContract.isExpirationWeek ?? 0,
+      tickSize: insertContract.tickSize ?? 0.01,
     };
     this.contracts.set(contract.symbol, contract);
     return contract;

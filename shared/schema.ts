@@ -14,6 +14,7 @@ export const futuresContracts = pgTable("futures_contracts", {
   volume: integer("volume").notNull(),
   weeklyVolatility: real("weekly_volatility").notNull(),
   dailyVolatility: real("daily_volatility").notNull(), // σ_daily = σ_weekly / √N (N = days remaining)
+  tickSize: real("tick_size").notNull().default(0.01), // Minimum price increment for the contract
   
   // Expiration tracking fields
   contractType: text("contract_type").notNull().default('equity_index'), // 'equity_index' or 'commodity'
