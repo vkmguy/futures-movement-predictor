@@ -49,7 +49,6 @@ export function prepareContractsForExport(contracts: FuturesContract[]) {
     'Daily Change': c.dailyChange,
     'Daily Change %': c.dailyChangePercent,
     Volume: c.volume,
-    'Open Interest': c.openInterest,
     'Weekly Volatility': c.weeklyVolatility,
     'Daily Volatility': c.dailyVolatility,
     'Updated At': new Date(c.updatedAt).toISOString(),
@@ -66,8 +65,6 @@ export function preparePredictionsForExport(predictions: DailyPrediction[]) {
     'Daily Volatility': p.dailyVolatility,
     'Weekly Volatility': p.weeklyVolatility,
     Confidence: p.confidence,
-    'OI Change': p.openInterestChange,
-    Trend: p.trend,
   }));
 }
 

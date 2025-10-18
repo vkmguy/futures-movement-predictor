@@ -48,17 +48,11 @@ export function ContractCard({ contract }: ContractCardProps) {
           </span>
         </div>
         
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-card-border">
+        <div className="pt-2 border-t border-card-border">
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Volume</span>
             <span className="text-sm font-mono font-medium" data-testid={`text-volume-${contract.symbol}`}>
               {contract.volume.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Open Interest</span>
-            <span className="text-sm font-mono font-medium" data-testid={`text-oi-${contract.symbol}`}>
-              {contract.openInterest.toLocaleString()}
             </span>
           </div>
         </div>

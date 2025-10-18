@@ -12,7 +12,6 @@ export const futuresContracts = pgTable("futures_contracts", {
   dailyChange: real("daily_change").notNull(),
   dailyChangePercent: real("daily_change_percent").notNull(),
   volume: integer("volume").notNull(),
-  openInterest: integer("open_interest").notNull(),
   weeklyVolatility: real("weekly_volatility").notNull(),
   dailyVolatility: real("daily_volatility").notNull(), // σ_daily = σ_weekly / √N (N = days remaining)
   
@@ -46,8 +45,6 @@ export const dailyPredictions = pgTable("daily_predictions", {
   dailyVolatility: real("daily_volatility").notNull(),
   weeklyVolatility: real("weekly_volatility").notNull(),
   confidence: real("confidence").notNull(),
-  openInterestChange: real("open_interest_change").notNull(),
-  trend: text("trend").notNull(),
 });
 
 export const insertFuturesContractSchema = createInsertSchema(futuresContracts).omit({

@@ -193,8 +193,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dailyVolatility: contract.dailyVolatility,
           weeklyVolatility: contract.weeklyVolatility,
           confidence: 0.85,
-          openInterestChange: 0,
-          trend: "neutral",
         });
       }
       
@@ -301,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate prediction based on current price and volatility
   app.post("/api/generate-prediction", async (req, res) => {
     try {
-      const { contractSymbol, currentPrice, weeklyVolatility, openInterestChange, model = 'standard', recentPriceChange } = req.body;
+      const { contractSymbol, currentPrice, weeklyVolatility, model = 'standard', recentPriceChange } = req.body;
       
       if (!contractSymbol || typeof currentPrice !== 'number' || typeof weeklyVolatility !== 'number') {
         return res.status(400).json({ error: "Invalid input parameters" });
@@ -322,9 +320,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const dailyMove = currentPrice * volResult.dailyVolatility;
       
-      const oiChange = openInterestChange || 0;
-      const trend = oiChange > 0.02 ? "bullish" : oiChange < -0.02 ? "bearish" : "neutral";
-      
       const prediction = await storage.createPrediction({
         contractSymbol,
         currentPrice,
@@ -333,8 +328,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dailyVolatility: volResult.dailyVolatility,
         weeklyVolatility: volResult.weeklyVolatility || weeklyVolatility,
         confidence: volResult.confidence,
-        openInterestChange: oiChange,
-        trend,
       });
 
       res.status(201).json({ prediction, volResult });

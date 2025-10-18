@@ -11,21 +11,6 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
   const range = prediction.predictedMax - prediction.predictedMin;
   const rangePercent = (range / prediction.currentPrice) * 100;
   
-  const getTrendColor = () => {
-    switch (prediction.trend) {
-      case "bullish": return "text-primary";
-      case "bearish": return "text-destructive";
-      default: return "text-muted-foreground";
-    }
-  };
-
-  const getTrendBadge = () => {
-    switch (prediction.trend) {
-      case "bullish": return "default";
-      case "bearish": return "destructive";
-      default: return "secondary";
-    }
-  };
 
   return (
     <Card data-testid={`card-prediction-${prediction.contractSymbol}`}>
@@ -37,9 +22,6 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Expected Range</span>
-            <Badge variant={getTrendBadge()} className="capitalize" data-testid={`badge-trend-${prediction.contractSymbol}`}>
-              {prediction.trend}
-            </Badge>
           </div>
           
           <div className="relative h-12 rounded-md bg-muted">
@@ -68,17 +50,11 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-card-border">
+        <div className="pt-3 border-t border-card-border">
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Confidence</span>
             <span className="text-sm font-mono font-semibold" data-testid={`text-confidence-${prediction.contractSymbol}`}>
               {(prediction.confidence * 100).toFixed(0)}%
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">OI Change</span>
-            <span className={`text-sm font-mono font-semibold ${prediction.openInterestChange >= 0 ? 'text-primary' : 'text-destructive'}`} data-testid={`text-oi-change-${prediction.contractSymbol}`}>
-              {prediction.openInterestChange >= 0 ? '+' : ''}{(prediction.openInterestChange * 100).toFixed(1)}%
             </span>
           </div>
         </div>

@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Minus, Activity } from "lucide-react";
+import { Activity } from "lucide-react";
 import { ExportMenu } from "@/components/export-menu";
 import { exportToCSV, exportToJSON, preparePredictionsForExport } from "@/lib/export-utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -36,7 +36,6 @@ export default function Predictions() {
           contractSymbol: contract.symbol,
           currentPrice: contract.currentPrice,
           weeklyVolatility: contract.weeklyVolatility,
-          openInterestChange: contract.openInterestChange,
           model: model,
           recentPriceChange: contract.dailyChangePercent,
         })
@@ -74,21 +73,6 @@ export default function Predictions() {
     );
   }
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case "bullish": return TrendingUp;
-      case "bearish": return TrendingDown;
-      default: return Minus;
-    }
-  };
-
-  const getTrendColor = (trend: string) => {
-    switch (trend) {
-      case "bullish": return "text-primary";
-      case "bearish": return "text-destructive";
-      default: return "text-muted-foreground";
-    }
-  };
 
   const handleExportCSV = () => {
     if (predictions && predictions.length > 0) {
@@ -137,8 +121,6 @@ export default function Predictions() {
 
       <div className="grid grid-cols-1 gap-4">
         {predictions?.map((prediction) => {
-          const TrendIcon = getTrendIcon(prediction.trend);
-          const trendColor = getTrendColor(prediction.trend);
           const range = prediction.predictedMax - prediction.predictedMin;
           const rangePercent = (range / prediction.currentPrice) * 100;
 
@@ -147,7 +129,7 @@ export default function Predictions() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <TrendIcon className={`h-6 w-6 ${trendColor}`} />
+                    <Activity className="h-6 w-6 text-muted-foreground" />
                     <div>
                       <CardTitle className="font-mono">{prediction.contractSymbol}</CardTitle>
                       <p className="text-sm text-muted-foreground">
@@ -158,9 +140,6 @@ export default function Predictions() {
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="font-mono">
                       {volatilityModel === 'standard' ? '√5' : volatilityModel.toUpperCase()}
-                    </Badge>
-                    <Badge variant={prediction.trend === "bullish" ? "default" : prediction.trend === "bearish" ? "destructive" : "secondary"} className="capitalize">
-                      {prediction.trend}
                     </Badge>
                   </div>
                 </div>
@@ -200,7 +179,7 @@ export default function Predictions() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-card-border">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-card-border">
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground">Daily Volatility</span>
                     <span className="text-sm font-mono font-medium">
@@ -217,12 +196,6 @@ export default function Predictions() {
                     <span className="text-xs text-muted-foreground">Confidence</span>
                     <span className="text-sm font-mono font-medium">
                       {(prediction.confidence * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">OI Change</span>
-                    <span className={`text-sm font-mono font-medium ${prediction.openInterestChange >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                      {prediction.openInterestChange >= 0 ? '+' : ''}{(prediction.openInterestChange * 100).toFixed(1)}%
                     </span>
                   </div>
                 </div>

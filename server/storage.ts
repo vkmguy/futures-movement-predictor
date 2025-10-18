@@ -145,7 +145,6 @@ export class MemStorage implements IStorage {
         dailyChange: 76.25,
         dailyChangePercent: 0.309,
         volume: 345678,
-        openInterest: 287432,
         weeklyVolatility: 0.0285,
         dailyVolatility: 0.0127,
         contractType: "equity_index",
@@ -161,7 +160,6 @@ export class MemStorage implements IStorage {
         dailyChange: -178.75,
         dailyChangePercent: -2.64,
         volume: 2145321,
-        openInterest: 3256789,
         weeklyVolatility: 0.0245,
         dailyVolatility: 0.0110,
         contractType: "equity_index",
@@ -177,7 +175,6 @@ export class MemStorage implements IStorage {
         dailyChange: -887.00,
         dailyChangePercent: -1.90,
         volume: 149700,
-        openInterest: 184567,
         weeklyVolatility: 0.0235,
         dailyVolatility: 0.0105,
         contractType: "equity_index",
@@ -193,7 +190,6 @@ export class MemStorage implements IStorage {
         dailyChange: 12.40,
         dailyChangePercent: 0.56,
         volume: 15950,
-        openInterest: 245678,
         weeklyVolatility: 0.0325,
         dailyVolatility: 0.0145,
         contractType: "equity_index",
@@ -209,7 +205,6 @@ export class MemStorage implements IStorage {
         dailyChange: 27.80,
         dailyChangePercent: 0.70,
         volume: 352500,
-        openInterest: 456789,
         weeklyVolatility: 0.0195,
         dailyVolatility: 0.0087,
         contractType: "commodity",
@@ -225,7 +220,6 @@ export class MemStorage implements IStorage {
         dailyChange: -2.61,
         dailyChangePercent: -4.24,
         volume: 236000,
-        openInterest: 789012,
         weeklyVolatility: 0.0415,
         dailyVolatility: 0.0186,
         contractType: "commodity",
@@ -281,8 +275,6 @@ export class MemStorage implements IStorage {
 
       // Generate predictions
       const dailyMove = contract.currentPrice * contract.dailyVolatility;
-      const oiChange = (Math.random() - 0.5) * 0.1;
-      const trend = oiChange > 0.02 ? "bullish" : oiChange < -0.02 ? "bearish" : "neutral";
       
       const prediction: DailyPrediction = {
         id: randomUUID(),
@@ -294,8 +286,6 @@ export class MemStorage implements IStorage {
         dailyVolatility: contract.dailyVolatility,
         weeklyVolatility: contract.weeklyVolatility,
         confidence: 0.70 + Math.random() * 0.25,
-        openInterestChange: oiChange,
-        trend,
       };
       
       this.predictions.set(contract.symbol, prediction);
