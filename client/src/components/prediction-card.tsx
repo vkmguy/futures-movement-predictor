@@ -15,7 +15,7 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
   return (
     <Card data-testid={`card-prediction-${prediction.contractSymbol}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
-        <CardTitle className="text-sm font-medium">Daily Movement Prediction</CardTitle>
+        <CardTitle className="text-sm font-medium">Daily Movement Prediction - {prediction.contractSymbol}</CardTitle>
         <TrendingUp className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent className="space-y-4">
