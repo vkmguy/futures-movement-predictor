@@ -25,11 +25,11 @@ export default function Dashboard() {
   });
 
   const { data: predictions, isLoading: predictionsLoading } = useQuery<DailyPrediction[]>({
-    queryKey: ['/api/predictions', selectedContract],
+    queryKey: [`/api/predictions/${selectedContract}`],
   });
 
   const { data: historicalData, isLoading: historicalLoading } = useQuery<HistoricalPrice[]>({
-    queryKey: ['/api/historical', selectedContract],
+    queryKey: [`/api/historical/${selectedContract}`],
   });
 
   const syncMutation = useMutation({
