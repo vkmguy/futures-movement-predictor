@@ -25,11 +25,11 @@ export default function Dashboard() {
   });
 
   const { data: predictions, isLoading: predictionsLoading } = useQuery<DailyPrediction[]>({
-    queryKey: [`/api/predictions/${selectedContract}`],
+    queryKey: [`/api/predictions/${encodeURIComponent(selectedContract)}`],
   });
 
   const { data: historicalData, isLoading: historicalLoading } = useQuery<HistoricalPrice[]>({
-    queryKey: [`/api/historical/${selectedContract}`],
+    queryKey: [`/api/historical/${encodeURIComponent(selectedContract)}`],
   });
 
   const syncMutation = useMutation({
@@ -63,9 +63,8 @@ export default function Dashboard() {
     ? contracts 
     : contracts?.filter(c => c.symbol === selectedContract);
 
-  const filteredPredictions = selectedContract === "ALL"
-    ? predictions
-    : predictions?.filter(p => p.contractSymbol === selectedContract);
+  // No need for client-side filtering - backend returns filtered predictions
+  const filteredPredictions = predictions;
 
   if (contractsLoading) {
     return (
