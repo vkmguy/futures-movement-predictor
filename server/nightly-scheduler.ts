@@ -3,6 +3,7 @@ import { getAllLastTradedPrices } from "./yahoo-finance";
 import { getMarketStatus } from "./market-hours";
 import { insertHistoricalDailyExpectedMovesSchema } from "@shared/schema";
 import { getContractExpirationInfo, calculateDynamicDailyVolatility } from "./expiration-calendar";
+import { roundToTick } from "@shared/utils";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 let lastRunDate: string | null = null;
@@ -94,9 +95,13 @@ export async function runNightlyCalculation() {
       // Get the updated daily volatility from contract (now using dynamic N)
       const dailyVolatility = contract.dailyVolatility;
       
-      // Calculate expected move ranges for next trading day
-      const expectedHigh = quote.regularMarketPrice + (quote.regularMarketPrice * dailyVolatility);
-      const expectedLow = quote.regularMarketPrice - (quote.regularMarketPrice * dailyVolatility);
+      // Calculate expected move ranges for next trading day (before tick rounding)
+      const rawExpectedHigh = quote.regularMarketPrice + (quote.regularMarketPrice * dailyVolatility);
+      const rawExpectedLow = quote.regularMarketPrice - (quote.regularMarketPrice * dailyVolatility);
+      
+      // Round to valid tick increments for the contract
+      const expectedHigh = roundToTick(rawExpectedHigh, contract.tickSize);
+      const expectedLow = roundToTick(rawExpectedLow, contract.tickSize);
       
       // Create historical daily expected moves record
       const movesData = {
