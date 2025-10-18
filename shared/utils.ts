@@ -23,11 +23,27 @@ export function roundToTick(price: number, tickSize: number): number {
   const rounded = Math.round(price / tickSize) * tickSize;
   
   // Fix floating point precision issues
-  // Determine decimal places from tick size
-  const decimalPlaces = Math.max(0, -Math.floor(Math.log10(tickSize)));
+  // Determine decimal places by examining the tick size string
+  // This correctly handles fractional ticks like 0.25 (2 decimals) and 0.10 (1 decimal)
+  const decimalPlaces = getDecimalPlaces(tickSize);
   
   // Round to the appropriate decimal places
   return Number(rounded.toFixed(decimalPlaces));
+}
+
+/**
+ * Determines the number of decimal places needed to represent a tick size.
+ * Handles fractional tick sizes correctly (e.g., 0.25 → 2, 0.10 → 1, 0.01 → 2).
+ * 
+ * @param tickSize - The tick size to analyze
+ * @returns Number of decimal places required
+ */
+function getDecimalPlaces(tickSize: number): number {
+  const tickStr = tickSize.toString();
+  if (!tickStr.includes('.')) {
+    return 0; // Whole number tick size (e.g., 1.0)
+  }
+  return tickStr.split('.')[1].length;
 }
 
 /**
@@ -43,6 +59,6 @@ export function roundToTick(price: number, tickSize: number): number {
  * formatTickPrice(58.91, 0.01)     // Returns "58.91"
  */
 export function formatTickPrice(price: number, tickSize: number): string {
-  const decimalPlaces = Math.max(0, -Math.floor(Math.log10(tickSize)));
+  const decimalPlaces = getDecimalPlaces(tickSize);
   return price.toFixed(decimalPlaces);
 }
