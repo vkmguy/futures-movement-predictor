@@ -117,7 +117,7 @@ export default function WeeklyTracker() {
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">Weekly Expected Moves</h1>
           <p className="text-muted-foreground mt-1">
-            Monday-Friday price movement tracking based on IV
+            Forward-looking predictions for upcoming week (generated Saturday after market close)
           </p>
         </div>
         <Button 
@@ -136,7 +136,9 @@ export default function WeeklyTracker() {
             <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Weekly Data</h3>
             <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
-              Click "Generate Moves" to calculate expected price movements for the week
+              Weekly moves predict the upcoming week's expected price movements. These strategic predictions
+              are calculated on Saturday (after the trading week closes) using Friday's closing IV data
+              to forecast next Monday-Friday ranges. Click "Generate Moves" to create predictions for next week.
             </p>
           </CardContent>
         </Card>
