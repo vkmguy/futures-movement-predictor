@@ -20,10 +20,19 @@ I prefer detailed explanations and iterative development. Ask before making majo
 -   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), and `PriceAlert`.
 -   **Prediction Models**:
     1.  **Daily Predictions (Dynamic √N Model)**: Uses `σ_daily = σ_weekly / √N` where N is trading days remaining until expiration. This model is applied for short-term trading decisions and is dynamic, changing daily based on contract-specific expiration rules for equity indices and commodities.
-    2.  **Weekly Expected Moves (Standard √5 Model)**: Uses `σ_daily = σ_weekly / √5` for standardized weekly tracking. This model tracks cumulative movement from Monday's week open, providing progressive daily ranges (√1 to √5) for consistent benchmarking. **Weekly data is now persisted in PostgreSQL and survives server restarts.**
+    2.  **Weekly Expected Moves (Forward-Looking Strategic Model)**: 
+        - **Strategic Predictions**: Forward-looking predictions for the UPCOMING week (next Monday-Friday)
+        - **Generation Timing**: Only generated on Saturday after the trading week closes
+        - **Data Source**: Uses Friday's closing IV and price data to forecast next week's movements
+        - **Calculation**: Uses `σ_daily = σ_weekly / √5` for standardized weekly tracking
+        - **Persistence**: Fully database-backed with automatic deduplication (one record per contract per week)
+        - **Stability**: Locked once generated - doesn't change during the week (unlike dynamic daily predictions)
+        - **Week Start Date**: Always stores next Monday as the week_start reference date
     3.  **Advanced Volatility Models**: Supports user-selectable **Standard Model** (default, direct conversion), **GARCH(1,1)** (time-weighted, adapts to recent volatility clusters), and **EWMA** (recent prices weighted more heavily) models. All apply dynamic √N expiration-based scaling for daily predictions.
 -   **Expiration Calendar System**: Dynamically calculates trading days remaining until expiration, excluding weekends and US market holidays, based on specific rules for Equity Index, Gold, and Crude Oil futures.
--   **Nightly Scheduler**: Automated daily calculations after market close (5:30 PM ET) to sync Yahoo Finance prices, update contract data, and calculate daily expected moves, storing historical data in PostgreSQL.
+-   **Nightly Scheduler**: 
+    - **Daily Calculations**: Runs after market close (5:30 PM ET) to sync Yahoo Finance prices, update contract data, and calculate daily expected moves, storing historical data in PostgreSQL
+    - **Weekly Generation**: Runs on Saturday to generate forward-looking weekly predictions for the upcoming week using Friday's closing data
 -   **Live Market Data**: WebSocket-based real-time price updates with a market simulator, including market hours detection and a WebSocket connection control toggle.
 -   **Data Export System**: CSV/JSON export functionality for contracts, predictions, and historical data.
 -   **Backtesting Module**: Tracks accuracy with historical comparison and performance metrics.

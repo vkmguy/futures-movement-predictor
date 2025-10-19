@@ -8,6 +8,7 @@ import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek } from "./weekly-calc
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 let lastRunDate: string | null = null;
+let lastWeeklyRunDate: string | null = null;
 
 // Check if we should run the nightly calculation
 // Runs once per day after market closes (after 5 PM ET)
@@ -49,7 +50,7 @@ function shouldGenerateWeeklyMoves(): boolean {
   
   // Check if we already ran weekly generation today
   const today = now.toISOString().split('T')[0];
-  if (lastRunDate === today) {
+  if (lastWeeklyRunDate === today) {
     return false;
   }
   
@@ -92,7 +93,12 @@ export async function generateWeeklyMovesForAllContracts() {
       console.log(`✨ Generated weekly moves for ${contract.symbol} (week starting ${nextMonday.toISOString().split('T')[0]})`);
     }
     
+    // Mark weekly generation as completed for today
+    const now = new Date();
+    lastWeeklyRunDate = now.toISOString().split('T')[0];
+    
     console.log(`✅ Weekly moves generation completed! Generated ${results.length} predictions for upcoming week`);
+    console.log(`📅 Next weekly run: Next Saturday`);
     return results;
   } catch (error) {
     console.error("❌ Weekly moves generation error:", error);
