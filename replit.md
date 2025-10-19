@@ -17,7 +17,12 @@ I prefer detailed explanations and iterative development. Ask before making majo
 -   **Navigation**: Sidebar with market overview and page links.
 
 ### Technical Implementations
--   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), and `PriceAlert`.
+-   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), `DailyIvHistory` (tactical IV tracking with timestamps), and `PriceAlert`.
+-   **Dual-IV Tracking System** (October 2025):
+    - **Daily IV (Tactical)**: Manually updated implied volatility stored in `daily_iv_history` table with date-based tracking and timestamps. Users update these values from real-time broker data for precise intraday trading decisions. Persists across nightly calculations and never gets reset.
+    - **Weekly IV (Strategic)**: Locked implied volatility captured during Saturday weekly generation, stored in `weekly_expected_moves` table. Provides stable week-long predictions for strategic planning.
+    - **Separation**: Daily predictions use latest daily IV (with weekly fallback), weekly tracker displays locked strategic IV. Nightly scheduler consumes but never modifies daily IVs.
+    - **UI Display**: Dashboard shows both IVs with clear labeling ("Daily IV: 22.5% updated 2h ago" vs "Weekly IV: 20.0% Locked"). Predictions page highlights which IV source is active.
 -   **Prediction Models**:
     1.  **Daily Predictions (Dynamic √N Model)**: Uses `σ_daily = σ_weekly / √N` where N is trading days remaining until expiration. This model is applied for short-term trading decisions and is dynamic, changing daily based on contract-specific expiration rules for equity indices and commodities.
     2.  **Weekly Expected Moves (Forward-Looking Strategic Model)**: 
@@ -31,8 +36,8 @@ I prefer detailed explanations and iterative development. Ask before making majo
     3.  **Advanced Volatility Models**: Supports user-selectable **Standard Model** (default, direct conversion), **GARCH(1,1)** (time-weighted, adapts to recent volatility clusters), and **EWMA** (recent prices weighted more heavily) models. All apply dynamic √N expiration-based scaling for daily predictions.
 -   **Expiration Calendar System**: Dynamically calculates trading days remaining until expiration, excluding weekends and US market holidays, based on specific rules for Equity Index, Gold, and Crude Oil futures.
 -   **Nightly Scheduler**: 
-    - **Daily Calculations**: Runs after market close (5:30 PM ET) to sync Yahoo Finance prices, update contract data, and calculate daily expected moves, storing historical data in PostgreSQL
-    - **Weekly Generation**: Runs on Saturday to generate forward-looking weekly predictions for the upcoming week using Friday's closing data
+    - **Daily Calculations**: Runs after market close (5:30 PM ET) to sync Yahoo Finance prices, update contract data, and calculate daily expected moves using latest daily IV (if available) or weekly volatility (fallback), storing historical data in PostgreSQL. Does NOT modify or overwrite manual daily IV updates.
+    - **Weekly Generation**: Runs on Saturday to generate forward-looking weekly predictions for the upcoming week using Friday's closing data, capturing and locking IV for strategic tracking
 -   **Live Market Data**: WebSocket-based real-time price updates with a market simulator, including market hours detection and a WebSocket connection control toggle.
 -   **Data Export System**: CSV/JSON export functionality for contracts, predictions, and historical data.
 -   **Backtesting Module**: Tracks accuracy with historical comparison and performance metrics.
@@ -41,8 +46,8 @@ I prefer detailed explanations and iterative development. Ask before making majo
 ### System Design Choices
 -   **Backend**: Express.js, Node.js, TypeScript.
 -   **Frontend**: React, Wouter (routing), TanStack Query, Tailwind CSS, Shadcn UI.
--   **Storage**: PostgreSQL database with Drizzle ORM for persistent storage. **Weekly Expected Moves** are now fully database-backed with automatic deduplication (one record per contract per week) and user-controlled deletion.
--   **API Routes**: RESTful endpoints for contracts, predictions, historical data, and weekly moves (GET, POST, PATCH, DELETE).
+-   **Storage**: PostgreSQL database with Drizzle ORM for persistent storage. **Weekly Expected Moves** are fully database-backed with automatic deduplication (one record per contract per week). **Daily IV History** is stored in dedicated table with date-based upsert logic, preserving all manual updates with timestamps.
+-   **API Routes**: RESTful endpoints for contracts, predictions, historical data, weekly moves, and daily IV tracking (GET, POST, PATCH, DELETE). Daily IV endpoints properly handle URL-encoded symbols (e.g., "/NQ" → "%2FNQ").
 -   **Database Drivers**: Environment-aware database connection system that automatically selects the appropriate PostgreSQL driver:
     -   **Replit/Neon Environment**: Uses `@neondatabase/serverless` with WebSocket-based connections for Neon cloud database
     -   **Local Docker Environment**: Uses standard `postgres` package with TCP connections for local PostgreSQL containers
