@@ -51,6 +51,7 @@ COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
 # Copy files required for database migrations
 COPY --from=builder --chown=nodejs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=nodejs:nodejs /app/shared ./shared
+COPY --from=builder --chown=nodejs:nodejs /app/migrations ./migrations
 
 # Set environment variables
 ENV NODE_ENV=production \
