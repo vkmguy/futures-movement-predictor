@@ -62,3 +62,36 @@ export function formatTickPrice(price: number, tickSize: number): string {
   const decimalPlaces = getDecimalPlaces(tickSize);
   return price.toFixed(decimalPlaces);
 }
+
+/**
+ * Calculates the next Monday from a given date.
+ * Used for forward-looking weekly predictions that forecast the upcoming week.
+ * 
+ * @param fromDate - The reference date (defaults to current date)
+ * @returns The next Monday as a Date object
+ * 
+ * @example
+ * // If today is Friday Oct 18, 2025
+ * getNextMonday()  // Returns Monday Oct 20, 2025
+ * 
+ * // If today is Monday Oct 20, 2025
+ * getNextMonday()  // Returns Monday Oct 27, 2025
+ * 
+ * // If today is Saturday Oct 19, 2025
+ * getNextMonday()  // Returns Monday Oct 20, 2025
+ */
+export function getNextMonday(fromDate: Date = new Date()): Date {
+  const date = new Date(fromDate);
+  date.setHours(0, 0, 0, 0); // Reset to start of day
+  
+  const currentDay = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  
+  // Calculate days until next Monday
+  // If today is Monday (1), we want next Monday (7 days)
+  // If today is Tuesday (2), we want 6 days ahead
+  // If today is Sunday (0), we want 1 day ahead
+  const daysUntilMonday = currentDay === 0 ? 1 : (8 - currentDay);
+  
+  date.setDate(date.getDate() + daysUntilMonday);
+  return date;
+}
