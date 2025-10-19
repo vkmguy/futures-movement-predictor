@@ -14,24 +14,8 @@ import { Activity, Clock } from "lucide-react";
 import { ExportMenu } from "@/components/export-menu";
 import { exportToCSV, exportToJSON, preparePredictionsForExport } from "@/lib/export-utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { DailyPrediction, FuturesContract } from "@shared/schema";
+import type { DailyPrediction, FuturesContract, DailyIvHistory, WeeklyIvOverride } from "@shared/schema";
 import { roundToTick } from "@shared/utils";
-
-interface DailyIVRecord {
-  contractSymbol: string;
-  dailyIv: number;
-  date: Date;
-  lastUpdated: Date;
-  source: string;
-}
-
-interface WeeklyIVRecord {
-  contractSymbol: string;
-  weeklyIv: number;
-  date: Date;
-  lastUpdated: Date;
-  source: string;
-}
 
 export default function Predictions() {
   const [volatilityModel, setVolatilityModel] = useState<string>("standard");
@@ -45,12 +29,12 @@ export default function Predictions() {
   });
 
   // Fetch daily IVs for all contracts
-  const { data: dailyIVs, isLoading: isLoadingDailyIVs } = useQuery<Record<string, DailyIVRecord>>({
+  const { data: dailyIVs, isLoading: isLoadingDailyIVs } = useQuery<Record<string, DailyIvHistory>>({
     queryKey: ['/api/daily-iv', 'all'],
     queryFn: async () => {
       if (!contracts) return {};
       
-      const ivMap: Record<string, DailyIVRecord> = {};
+      const ivMap: Record<string, DailyIvHistory> = {};
       
       // Fetch daily IV for each contract
       await Promise.all(
@@ -74,12 +58,12 @@ export default function Predictions() {
   });
 
   // Fetch weekly IVs for all contracts
-  const { data: weeklyIVs } = useQuery<Record<string, WeeklyIVRecord>>({
+  const { data: weeklyIVs } = useQuery<Record<string, WeeklyIvOverride>>({
     queryKey: ['/api/weekly-iv', 'all'],
     queryFn: async () => {
       if (!contracts) return {};
       
-      const ivMap: Record<string, WeeklyIVRecord> = {};
+      const ivMap: Record<string, WeeklyIvOverride> = {};
       
       // Fetch weekly IV for each contract
       await Promise.all(
