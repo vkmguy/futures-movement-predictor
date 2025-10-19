@@ -266,6 +266,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Weekly IV Override endpoints
+  
+  // Save weekly IV (creates or updates for today's date)
+  app.post("/api/weekly-iv", async (req, res) => {
+    try {
+      const { contractSymbol, weeklyIv, date, source } = req.body;
+      
+      if (!contractSymbol || typeof contractSymbol !== 'string') {
+        return res.status(400).json({ error: "contractSymbol is required" });
+      }
+      
+      if (typeof weeklyIv !== 'number' || weeklyIv < 0 || weeklyIv > 1) {
+        return res.status(400).json({ error: "weeklyIv must be a number between 0 and 1" });
+      }
+      
+      const effectiveDate = date ? new Date(date) : new Date();
+      const effectiveSource = source || 'manual';
+      
+      const savedIV = await storage.saveWeeklyIV(contractSymbol, weeklyIv, effectiveDate, effectiveSource);
+      
+      console.log(`✅ Saved weekly IV for ${contractSymbol}: ${(weeklyIv * 100).toFixed(2)}% (date: ${effectiveDate.toISOString().split('T')[0]})`);
+      
+      res.json(savedIV);
+    } catch (error: any) {
+      console.error("Error saving weekly IV:", error);
+      res.status(500).json({ error: error.message || "Failed to save weekly IV" });
+    }
+  });
+  
+  // Get latest weekly IV for a contract
+  app.get("/api/weekly-iv/:symbol", async (req, res) => {
+    try {
+      const latestIV = await storage.getLatestWeeklyIV(req.params.symbol);
+      
+      if (!latestIV) {
+        return res.status(404).json({ error: "No weekly IV found for this contract" });
+      }
+      
+      res.json(latestIV);
+    } catch (error) {
+      console.error("Error fetching latest weekly IV:", error);
+      res.status(500).json({ error: "Failed to fetch weekly IV" });
+    }
+  });
+  
+  // Get weekly IV history for a contract
+  app.get("/api/weekly-iv/:symbol/history", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
+      const history = await storage.getWeeklyIVHistory(req.params.symbol, limit);
+      
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching weekly IV history:", error);
+      res.status(500).json({ error: "Failed to fetch weekly IV history" });
+    }
+  });
+
   // Get historical prices
   app.get("/api/historical/:symbol", async (req, res) => {
     try {
