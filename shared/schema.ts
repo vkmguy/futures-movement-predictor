@@ -205,6 +205,25 @@ export const insertDailyIvHistorySchema = createInsertSchema(dailyIvHistory).omi
 export type InsertDailyIvHistory = z.infer<typeof insertDailyIvHistorySchema>;
 export type DailyIvHistory = typeof dailyIvHistory.$inferSelect;
 
+// Weekly IV Overrides - tracks manual weekly IV updates independent from daily IV
+// This allows users to update weekly IV at any time (not just on Saturday)
+export const weeklyIvOverrides = pgTable("weekly_iv_overrides", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractSymbol: text("contract_symbol").notNull(),
+  weeklyIv: real("weekly_iv").notNull(), // IV as decimal (e.g., 0.042 for 4.2%)
+  date: timestamp("date").notNull(), // Date this IV is effective for
+  lastUpdated: timestamp("last_updated").notNull().defaultNow(), // When the record was created/updated
+  source: text("source").notNull().default('manual'), // 'manual' or 'system'
+});
+
+export const insertWeeklyIvOverrideSchema = createInsertSchema(weeklyIvOverrides).omit({
+  id: true,
+  lastUpdated: true,
+});
+
+export type InsertWeeklyIvOverride = z.infer<typeof insertWeeklyIvOverrideSchema>;
+export type WeeklyIvOverride = typeof weeklyIvOverrides.$inferSelect;
+
 // IV Batch Update Schema
 const VALID_CONTRACT_SYMBOLS = ["/NQ", "/ES", "/YM", "/RTY", "/GC", "/CL"] as const;
 

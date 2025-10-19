@@ -15,8 +15,11 @@ import {
   type InsertIvUpdate,
   type DailyIvHistory,
   type InsertDailyIvHistory,
+  type WeeklyIvOverride,
+  type InsertWeeklyIvOverride,
   weeklyExpectedMoves,
-  dailyIvHistory
+  dailyIvHistory,
+  weeklyIvOverrides
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -73,6 +76,12 @@ export interface IStorage {
   getLatestDailyIV(contractSymbol: string): Promise<DailyIvHistory | undefined>;
   getDailyIVHistory(contractSymbol: string, limit?: number): Promise<DailyIvHistory[]>;
   getDailyIVByDate(contractSymbol: string, date: Date): Promise<DailyIvHistory | undefined>;
+
+  // Weekly IV Overrides
+  saveWeeklyIV(contractSymbol: string, weeklyIv: number, date: Date, source?: string): Promise<WeeklyIvOverride>;
+  getLatestWeeklyIV(contractSymbol: string): Promise<WeeklyIvOverride | undefined>;
+  getWeeklyIVHistory(contractSymbol: string, limit?: number): Promise<WeeklyIvOverride[]>;
+  getWeeklyIVByDate(contractSymbol: string, date: Date): Promise<WeeklyIvOverride | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -694,6 +703,86 @@ export class MemStorage implements IStorage {
         and(
           eq(dailyIvHistory.contractSymbol, contractSymbol),
           eq(dailyIvHistory.date, date)
+        )
+      )
+      .limit(1);
+    
+    return results[0];
+  }
+
+  // Weekly IV Override methods
+  async saveWeeklyIV(contractSymbol: string, weeklyIv: number, date: Date, source: string = 'manual'): Promise<WeeklyIvOverride> {
+    // First check if we already have a record for this date
+    const existing = await this.getWeeklyIVByDate(contractSymbol, date);
+    
+    if (existing) {
+      // Update existing record
+      const updateData = {
+        weeklyIv,
+        lastUpdated: new Date(),
+        source,
+      };
+      
+      const results = await db
+        .update(weeklyIvOverrides)
+        .set(updateData)
+        .where(
+          and(
+            eq(weeklyIvOverrides.contractSymbol, contractSymbol),
+            eq(weeklyIvOverrides.date, date)
+          )
+        )
+        .returning();
+      
+      return results[0];
+    }
+    
+    // Create new record
+    const insertData: InsertWeeklyIvOverride = {
+      contractSymbol,
+      weeklyIv,
+      date,
+      source,
+    };
+    
+    const results = await db
+      .insert(weeklyIvOverrides)
+      .values(insertData)
+      .returning();
+    
+    return results[0];
+  }
+
+  async getLatestWeeklyIV(contractSymbol: string): Promise<WeeklyIvOverride | undefined> {
+    const results = await db
+      .select()
+      .from(weeklyIvOverrides)
+      .where(eq(weeklyIvOverrides.contractSymbol, contractSymbol))
+      .orderBy(desc(weeklyIvOverrides.date), desc(weeklyIvOverrides.lastUpdated))
+      .limit(1);
+    
+    return results[0];
+  }
+
+  async getWeeklyIVHistory(contractSymbol: string, limit: number = 30): Promise<WeeklyIvOverride[]> {
+    const results = await db
+      .select()
+      .from(weeklyIvOverrides)
+      .where(eq(weeklyIvOverrides.contractSymbol, contractSymbol))
+      .orderBy(desc(weeklyIvOverrides.date))
+      .limit(limit);
+    
+    return results;
+  }
+
+  async getWeeklyIVByDate(contractSymbol: string, date: Date): Promise<WeeklyIvOverride | undefined> {
+    const results = await db
+      .select()
+      .from(weeklyIvOverrides)
+      .where(
+        and(
+          eq(weeklyIvOverrides.contractSymbol, contractSymbol),
+          eq(weeklyIvOverrides.date, date)
         )
       )
       .limit(1);
