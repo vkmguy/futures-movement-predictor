@@ -334,6 +334,9 @@ export default function Predictions() {
                     <span className="text-sm font-mono font-semibold text-primary">
                       {(prediction.dailyVolatility * 100).toFixed(2)}%
                     </span>
+                    <span className="text-xs text-muted-foreground font-mono" data-testid={`text-formula-${prediction.contractSymbol}`}>
+                      Formula: IV × √({contract.daysRemaining}/252)
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {(prediction.confidence * 100).toFixed(0)}% confidence
                     </span>

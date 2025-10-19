@@ -56,8 +56,8 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, days
           <Progress value={progressValue} className="h-2" />
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Level: {volatilityLevel}</span>
-            <span className="text-xs text-muted-foreground font-mono">
-              IV × √({N}/252)
+            <span className="text-xs font-mono text-muted-foreground" data-testid={`text-formula-${symbol}`}>
+              Formula: IV × √({N}/252)
             </span>
           </div>
         </div>

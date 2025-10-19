@@ -7,7 +7,6 @@
  */
 
 import { addMonths, getDay, setDate, startOfMonth, endOfMonth, isBefore, isAfter, isWeekend, addDays, differenceInCalendarDays, setHours, setMinutes, setSeconds, setMilliseconds } from 'date-fns';
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 
 // US Market Holidays for 2025 (CME Group observed holidays)
 const US_MARKET_HOLIDAYS_2025 = [
@@ -139,50 +138,50 @@ export function calculateTradingDays(startDate: Date, endDate: Date): number {
 }
 
 /**
- * Get the next Friday at 5 PM ET from a given date
- * Handles ET timezone correctly for Friday market close
- * Returns a normalized Friday date at 5 PM ET (17:00)
+ * Get the next Friday at market close from a given date
+ * Handles ET timezone correctly for Friday 5 PM market close
+ * Uses Intl.DateTimeFormat.formatToParts to get ET components without string parsing issues
  */
 function getNextFriday(fromDate: Date): Date {
-  const ET_TIMEZONE = 'America/New_York';
+  // Use formatToParts to get ET timezone components
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    weekday: 'short',
+    hour: 'numeric',
+    hour12: false
+  });
   
-  // Convert current time to ET timezone
-  const etNow = utcToZonedTime(fromDate, ET_TIMEZONE);
-  const etDayOfWeek = getDay(etNow); // 0 = Sunday, 5 = Friday
-  const etHour = etNow.getHours();
+  const parts = formatter.formatToParts(fromDate);
+  const etHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
   
-  // Determine which Friday to use
-  let targetFriday: Date;
+  // Get weekday from the parts
+  const weekdayStr = parts.find(p => p.type === 'weekday')?.value || '';
+  const weekdayMap: {[key: string]: number} = {
+    'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+  };
+  const etDayOfWeek = weekdayMap[weekdayStr] ?? 0;
+  
+  // Determine days to add to get to next Friday
+  let daysToAdd = 0;
   
   if (etDayOfWeek === 5) {
-    // It's Friday in ET timezone
-    if (etHour < 17) {
-      // Before 5 PM ET - expiration is today
-      targetFriday = etNow;
-    } else {
-      // After market close - roll to next Friday
-      targetFriday = addDays(etNow, 7);
+    // It's Friday in ET
+    if (etHour >= 17) {
+      // After 5 PM ET - roll to next Friday
+      daysToAdd = 7;
     }
+    // else: Before 5 PM ET - stay on current Friday (daysToAdd = 0)
   } else {
     // Not Friday - calculate days until next Friday
-    const daysUntilFriday = (5 - etDayOfWeek + 7) % 7;
-    targetFriday = addDays(etNow, daysUntilFriday === 0 ? 7 : daysUntilFriday);
+    daysToAdd = (5 - etDayOfWeek + 7) % 7;
+    if (daysToAdd === 0) daysToAdd = 7;
   }
   
-  // Normalize to Friday at 5 PM ET (market close)
-  const normalizedFriday = setMilliseconds(
-    setSeconds(
-      setMinutes(
-        setHours(targetFriday, 17),
-        0
-      ),
-      0
-    ),
-    0
-  );
-  
-  // Convert back to UTC for storage
-  return zonedTimeToUtc(normalizedFriday, ET_TIMEZONE);
+  // Return the target Friday
+  return addDays(fromDate, daysToAdd);
 }
 
 /**
