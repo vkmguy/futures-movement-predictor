@@ -6,7 +6,8 @@
  * expiration rules.
  */
 
-import { addMonths, getDay, setDate, startOfMonth, endOfMonth, isBefore, isAfter, isWeekend, addDays, differenceInCalendarDays } from 'date-fns';
+import { addMonths, getDay, setDate, startOfMonth, endOfMonth, isBefore, isAfter, isWeekend, addDays, differenceInCalendarDays, setHours, setMinutes, setSeconds, setMilliseconds } from 'date-fns';
+import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 
 // US Market Holidays for 2025 (CME Group observed holidays)
 const US_MARKET_HOLIDAYS_2025 = [
@@ -138,32 +139,50 @@ export function calculateTradingDays(startDate: Date, endDate: Date): number {
 }
 
 /**
- * Get the next Friday from a given date
- * Handles ET timezone correctly for Friday market close (5 PM ET)
- * Both weekday and hour are determined in America/New_York timezone
+ * Get the next Friday at 5 PM ET from a given date
+ * Handles ET timezone correctly for Friday market close
+ * Returns a normalized Friday date at 5 PM ET (17:00)
  */
 function getNextFriday(fromDate: Date): Date {
-  // Convert to ET timezone to get both day and hour
-  const etTimeString = fromDate.toLocaleString('en-US', { timeZone: 'America/New_York' });
-  const etDate = new Date(etTimeString);
-  const etDayOfWeek = getDay(etDate); // 0 = Sunday, 5 = Friday
-  const etHour = etDate.getHours();
+  const ET_TIMEZONE = 'America/New_York';
   
-  // Calculate days until Friday based on ET timezone
-  const daysUntilFriday = etDayOfWeek === 5 ? 7 : (5 - etDayOfWeek + 7) % 7;
+  // Convert current time to ET timezone
+  const etNow = utcToZonedTime(fromDate, ET_TIMEZONE);
+  const etDayOfWeek = getDay(etNow); // 0 = Sunday, 5 = Friday
+  const etHour = etNow.getHours();
   
-  // If it's Friday in ET timezone
+  // Determine which Friday to use
+  let targetFriday: Date;
+  
   if (etDayOfWeek === 5) {
-    // If it's Friday before 5 PM ET (17:00), expiration is today
+    // It's Friday in ET timezone
     if (etHour < 17) {
-      return fromDate;
+      // Before 5 PM ET - expiration is today
+      targetFriday = etNow;
+    } else {
+      // After market close - roll to next Friday
+      targetFriday = addDays(etNow, 7);
     }
-    // After market close, roll to next Friday
-    return addDays(fromDate, 7);
+  } else {
+    // Not Friday - calculate days until next Friday
+    const daysUntilFriday = (5 - etDayOfWeek + 7) % 7;
+    targetFriday = addDays(etNow, daysUntilFriday === 0 ? 7 : daysUntilFriday);
   }
   
-  // For other days, add days until next Friday
-  return addDays(fromDate, daysUntilFriday === 0 ? 7 : daysUntilFriday);
+  // Normalize to Friday at 5 PM ET (market close)
+  const normalizedFriday = setMilliseconds(
+    setSeconds(
+      setMinutes(
+        setHours(targetFriday, 17),
+        0
+      ),
+      0
+    ),
+    0
+  );
+  
+  // Convert back to UTC for storage
+  return zonedTimeToUtc(normalizedFriday, ET_TIMEZONE);
 }
 
 /**

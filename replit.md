@@ -1,7 +1,7 @@
 # Futures Movement Predictor
 
 ## Overview
-A professional web-based application designed for predicting daily price movements of futures contracts (/NQ, /ES, /YM) based on weekly volatility analysis, latest prices, and open interest data. Its purpose is to provide traders and analysts with data-driven predictions for Nasdaq 100 (/NQ), S&P 500 (/ES), and Dow Jones (/YM) futures contracts using statistical volatility models. The project is a fully functional MVP with core features like a dashboard, analytics, and predictions pages.
+A professional web-based application designed for predicting daily price movements of futures contracts (/NQ, /ES, /YM, /RTY, /GC, /CL) based on weekly volatility analysis, latest prices, and open interest data. Uses **252 trading days** methodology (industry standard) for all volatility calculations. Weekly equity index contracts (/NQ, /ES, /YM, /RTY) expire every Friday (1-5 days), while commodities use quarterly expiration. The project is a fully functional MVP with core features like a dashboard, analytics, and predictions pages.
 
 ## User Preferences
 I prefer detailed explanations and iterative development. Ask before making major changes. I prefer that you do not make changes to the folder `Z` or the file `Y`.
@@ -17,45 +17,48 @@ I prefer detailed explanations and iterative development. Ask before making majo
 -   **Navigation**: Sidebar with market overview and page links.
 
 ### Technical Implementations
--   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility - **Note**: `contract.dailyVolatility` field now uses annualized formula `IV × √(days/365)` for consistency with prediction calculations), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), `DailyIvHistory` (tactical IV tracking with timestamps), and `PriceAlert`.
+-   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility - **Note**: `contract.dailyVolatility` field now uses annualized formula `IV × √(days/252)` using **252 trading days** methodology for consistency with prediction calculations), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), `DailyIvHistory` (tactical IV tracking with timestamps), and `PriceAlert`.
 -   **Dual-IV Tracking System** (October 2025):
     - **Daily IV (Tactical)**: Manually updated implied volatility stored in `daily_iv_history` table with date-based tracking and timestamps. Users update these values from real-time broker data for precise intraday trading decisions. Persists across nightly calculations and never gets reset.
     - **Weekly IV (Strategic)**: Manually updateable implied volatility stored in `weekly_iv_overrides` table with full historical tracking. Provides flexible strategic IV updates at any time (not just on Saturday). Can be updated independently from daily IV.
     - **Separation**: Daily predictions use latest daily IV (with weekly fallback), weekly tracker displays manual weekly IV when available. Nightly scheduler consumes but never modifies manual IV updates.
     - **IV Source Transparency** (October 2025): Complete transparency across all pages showing which IV values are driving predictions:
       - **Dashboard** (Updated October 2025): 
-        - **VolatilityCard**: Calculates daily volatility on-the-fly using `annualizedIV × √(days/365)` formula to ensure real-time consistency. Displays "Daily Volatility (Nd)" with calculated value (e.g., 8.42% for 43 days), "Annualized IV" showing manual input value (e.g., 24.51%) with "Manual" badge, and "IV Source" indicating Tactical or Strategic. Formula display shows `IV × √(N/365)`.
+        - **VolatilityCard**: Calculates daily volatility on-the-fly using `annualizedIV × √(days/252)` formula (252 trading days methodology) to ensure real-time consistency. Displays "Daily Volatility (Nd)" with calculated value (e.g., 5.70% for 43 days), "Annualized IV" showing manual input value (e.g., 24.51%) with "Manual" badge, and "IV Source" indicating Tactical or Strategic. Formula display shows `IV × √(N/252)`.
         - **PredictionCard**: Shows "Daily IV" badge when using manual daily IV for calculations.
       - **Predictions Page** (Updated October 2025): Clear three-column layout showing:
         - **Annualized IV (Tactical)**: Manual annualized IV from daily updates (e.g., 24.51%)
         - **Annualized IV (Strategic)**: Manual annualized IV from weekly updates (e.g., 24.51%)
-        - **Daily Volatility (Xd)**: Calculated daily volatility showing days remaining (e.g., 8.42% for 43 days)
+        - **Daily Volatility (Xd)**: Calculated daily volatility showing days remaining (e.g., 5.70% for 43 days) using **252 trading days** formula
         - Labels clearly distinguish between annualized inputs and calculated daily outputs
       - **Weekly Tracker**: Displays "Manual" badge with timestamp next to IV value when manual weekly IV override exists, providing full provenance for weekly predictions.
       - **Type Safety**: All pages use centralized `DailyIvHistory` and `WeeklyIvOverride` types from `@shared/schema`, eliminating interface duplication and ensuring type consistency.
       - **Timestamp Format**: Relative time display (e.g., "Updated 2h ago" or "Updated 1d ago") with clock icon for quick reference.
 -   **Prediction Models** (October 2025 - NEW ANNUALIZED METHODOLOGY):
     1.  **Daily Predictions (Annualized Dynamic Model)**: 
-        - **Formula**: `Expected Move = Current Price × Annualized IV × √(Days to Expiration / 365)`
+        - **Formula**: `Expected Move = Current Price × Annualized IV × √(Days to Expiration / 252)` (252 trading days methodology)
         - **Time Decay**: Properly adjusts volatility based on remaining trading days using annualized conversion
         - **Example**: For /NQ at $24,986.50 with 2.85% IV and 43 days to expiration:
-          - Daily Volatility = 2.85% × √(43/365) = 0.9782%
-          - Expected Daily Move = $24,986.50 × 0.009782 = $244.42
+          - Daily Volatility = 2.85% × √(43/252) = 1.178%
+          - Expected Daily Move = $24,986.50 × 0.01178 = $294.34
         - **Source**: Uses manual daily IV (tactical) if available, otherwise falls back to weekly IV
         - **Dynamic**: Recalculates nightly as days to expiration decreases
     2.  **Weekly Expected Moves (Annualized Strategic Model)**: 
-        - **Formula**: `Weekly Move = Last Price × Annualized IV × √(5 / 365)` ≈ Last Price × IV × 0.117
+        - **Formula**: `Weekly Move = Last Price × Annualized IV × √(5 / 252)` (252 trading days methodology)
         - **Strategic Predictions**: Forward-looking predictions for the UPCOMING week (next Monday-Friday)
         - **Generation Timing**: Only generated on Saturday after the trading week closes
         - **Data Source**: Uses Friday's closing IV and price data to forecast next week's movements
         - **Example**: For /NQ at $24,986.50 with 2.85% IV:
-          - Weekly Move = $24,986.50 × 0.0285 × √(5/365) = $83.35
+          - Weekly Move = $24,986.50 × 0.0285 × √(5/252) = $100.36
         - **Persistence**: Fully database-backed with automatic deduplication (one record per contract per week)
         - **Stability**: Locked once generated - doesn't change during the week (unlike dynamic daily predictions)
         - **Week Start Date**: Always stores next Monday as the week_start reference date
         - **Dynamic Display**: Shows only remaining days in the current week (Mon-Fri → Tue-Fri → Wed-Fri as week progresses)
-    3.  **Advanced Volatility Models**: Supports user-selectable **Standard Model** (default, direct conversion), **GARCH(1,1)** (time-weighted, adapts to recent volatility clusters), and **EWMA** (recent prices weighted more heavily) models. All apply annualized √(Days/365) expiration-based scaling for daily predictions.
+    3.  **Advanced Volatility Models**: Supports user-selectable **Standard Model** (default, direct conversion), **GARCH(1,1)** (time-weighted, adapts to recent volatility clusters), and **EWMA** (recent prices weighted more heavily) models. All apply annualized √(Days/252) expiration-based scaling for daily predictions.
 -   **Expiration Calendar System**: Dynamically calculates trading days remaining until expiration, excluding weekends and US market holidays, based on specific rules for Equity Index, Gold, and Crude Oil futures.
+    - **Weekly Equity Index Contracts** (/NQ, /ES, /YM, /RTY): Expire every Friday at 5 PM ET (1-5 days to expiration)
+    - **Quarterly Commodities Contracts** (/GC, /CL): Use quarterly expiration schedule
+    - **Timezone Handling**: All expiration calculations use America/New_York timezone to properly handle Friday market close (5 PM ET). Both weekday and hour are derived from ET timezone to prevent incorrect rollover during Thursday/Friday evening sessions.
 -   **Nightly Scheduler**: 
     - **Daily Calculations**: Runs after market close (5:30 PM ET) to sync Yahoo Finance prices, update contract data, and calculate daily expected moves using latest daily IV (if available) or weekly volatility (fallback), storing historical data in PostgreSQL. Does NOT modify or overwrite manual daily IV updates.
     - **Weekly Generation**: Runs on Saturday to generate forward-looking weekly predictions for the upcoming week using Friday's closing data, capturing and locking IV for strategic tracking
