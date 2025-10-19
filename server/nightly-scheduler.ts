@@ -3,7 +3,8 @@ import { getAllLastTradedPrices } from "./yahoo-finance";
 import { getMarketStatus } from "./market-hours";
 import { insertHistoricalDailyExpectedMovesSchema } from "@shared/schema";
 import { getContractExpirationInfo, calculateDynamicDailyVolatility } from "./expiration-calendar";
-import { roundToTick } from "@shared/utils";
+import { roundToTick, getNextMonday } from "@shared/utils";
+import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek } from "./weekly-calculator";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 let lastRunDate: string | null = null;
@@ -34,6 +35,69 @@ function shouldRunNightlyCalculation(): boolean {
   }
   
   return false;
+}
+
+// Check if we should generate weekly moves (only on Saturdays)
+function shouldGenerateWeeklyMoves(): boolean {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+  
+  // Only generate on Saturday (day 6)
+  if (dayOfWeek !== 6) {
+    return false;
+  }
+  
+  // Check if we already ran weekly generation today
+  const today = now.toISOString().split('T')[0];
+  if (lastRunDate === today) {
+    return false;
+  }
+  
+  return true;
+}
+
+export async function generateWeeklyMovesForAllContracts() {
+  try {
+    console.log("📅 Generating weekly expected moves for upcoming week...");
+    
+    const contracts = await storage.getAllContracts();
+    const results = [];
+    const nextMonday = getNextMonday();
+    
+    console.log(`🗓️  Calculating moves for week starting: ${nextMonday.toISOString().split('T')[0]}`);
+    
+    for (const contract of contracts) {
+      // Calculate weekly moves for next week
+      const calculatedMoves = calculateWeeklyExpectedMoves(
+        contract.symbol,
+        contract.currentPrice,
+        contract.weeklyVolatility,
+        nextMonday, // Use next Monday as week start
+        "1" // Start with Monday (day 1 as string)
+      );
+      
+      // Check if moves already exist for this contract and week
+      const existing = await storage.getWeeklyMoves(contract.symbol);
+      
+      if (existing && existing.weekStartDate.toISOString().split('T')[0] === nextMonday.toISOString().split('T')[0]) {
+        console.log(`✓ Weekly moves already exist for ${contract.symbol} (week of ${nextMonday.toISOString().split('T')[0]})`);
+        results.push(existing);
+        continue;
+      }
+      
+      // Create new weekly moves for upcoming week
+      const result = await storage.createWeeklyMoves(calculatedMoves);
+      results.push(result);
+      
+      console.log(`✨ Generated weekly moves for ${contract.symbol} (week starting ${nextMonday.toISOString().split('T')[0]})`);
+    }
+    
+    console.log(`✅ Weekly moves generation completed! Generated ${results.length} predictions for upcoming week`);
+    return results;
+  } catch (error) {
+    console.error("❌ Weekly moves generation error:", error);
+    throw error;
+  }
 }
 
 export async function runNightlyCalculation() {
@@ -151,8 +215,14 @@ export function startNightlyScheduler() {
   
   // Check every hour
   schedulerInterval = setInterval(async () => {
+    // Daily calculation after market close
     if (shouldRunNightlyCalculation()) {
       await runNightlyCalculation();
+    }
+    
+    // Weekly moves generation on Saturday
+    if (shouldGenerateWeeklyMoves()) {
+      await generateWeeklyMovesForAllContracts();
     }
   }, 60 * 60 * 1000); // Check every hour
   
@@ -160,6 +230,9 @@ export function startNightlyScheduler() {
   setTimeout(async () => {
     if (shouldRunNightlyCalculation()) {
       await runNightlyCalculation();
+    }
+    if (shouldGenerateWeeklyMoves()) {
+      await generateWeeklyMovesForAllContracts();
     }
   }, 10000); // Wait 10 seconds after startup
 }
