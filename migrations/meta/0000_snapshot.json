@@ -1,0 +1,733 @@
+{
+  "id": "1f8f3723-203f-4d90-8778-35bc15100965",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.daily_iv_history": {
+      "name": "daily_iv_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_symbol": {
+          "name": "contract_symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_iv": {
+          "name": "daily_iv",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_updated": {
+          "name": "last_updated",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.daily_predictions": {
+      "name": "daily_predictions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_symbol": {
+          "name": "contract_symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "current_price": {
+          "name": "current_price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "predicted_min": {
+          "name": "predicted_min",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "predicted_max": {
+          "name": "predicted_max",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_volatility": {
+          "name": "daily_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekly_volatility": {
+          "name": "weekly_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.futures_contracts": {
+      "name": "futures_contracts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_price": {
+          "name": "current_price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_close": {
+          "name": "previous_close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_change": {
+          "name": "daily_change",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_change_percent": {
+          "name": "daily_change_percent",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "volume": {
+          "name": "volume",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekly_volatility": {
+          "name": "weekly_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_volatility": {
+          "name": "daily_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tick_size": {
+          "name": "tick_size",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0.01
+        },
+        "contract_type": {
+          "name": "contract_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'equity_index'"
+        },
+        "expiration_date": {
+          "name": "expiration_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "days_remaining": {
+          "name": "days_remaining",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_expiration_week": {
+          "name": "is_expiration_week",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "futures_contracts_symbol_unique": {
+          "name": "futures_contracts_symbol_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "symbol"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.historical_daily_expected_moves": {
+      "name": "historical_daily_expected_moves",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_symbol": {
+          "name": "contract_symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_traded_price": {
+          "name": "last_traded_price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_close": {
+          "name": "previous_close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekly_volatility": {
+          "name": "weekly_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_volatility": {
+          "name": "daily_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_high": {
+          "name": "expected_high",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_low": {
+          "name": "expected_low",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actual_close": {
+          "name": "actual_close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "within_range": {
+          "name": "within_range",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.historical_prices": {
+      "name": "historical_prices",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_symbol": {
+          "name": "contract_symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "open": {
+          "name": "open",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "high": {
+          "name": "high",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "low": {
+          "name": "low",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "close": {
+          "name": "close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "volume": {
+          "name": "volume",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.iv_updates": {
+      "name": "iv_updates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_symbol": {
+          "name": "contract_symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekly_volatility": {
+          "name": "weekly_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "update_date": {
+          "name": "update_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.price_alerts": {
+      "name": "price_alerts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_symbol": {
+          "name": "contract_symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alert_type": {
+          "name": "alert_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_price": {
+          "name": "target_price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "percentage": {
+          "name": "percentage",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "triggered": {
+          "name": "triggered",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.weekly_expected_moves": {
+      "name": "weekly_expected_moves",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_symbol": {
+          "name": "contract_symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "week_start_date": {
+          "name": "week_start_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_day_of_week": {
+          "name": "current_day_of_week",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "week_open_price": {
+          "name": "week_open_price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monday_expected_high": {
+          "name": "monday_expected_high",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monday_expected_low": {
+          "name": "monday_expected_low",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monday_actual_close": {
+          "name": "monday_actual_close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tuesday_expected_high": {
+          "name": "tuesday_expected_high",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tuesday_expected_low": {
+          "name": "tuesday_expected_low",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tuesday_actual_close": {
+          "name": "tuesday_actual_close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wednesday_expected_high": {
+          "name": "wednesday_expected_high",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wednesday_expected_low": {
+          "name": "wednesday_expected_low",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wednesday_actual_close": {
+          "name": "wednesday_actual_close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "thursday_expected_high": {
+          "name": "thursday_expected_high",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "thursday_expected_low": {
+          "name": "thursday_expected_low",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "thursday_actual_close": {
+          "name": "thursday_actual_close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "friday_expected_high": {
+          "name": "friday_expected_high",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "friday_expected_low": {
+          "name": "friday_expected_low",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "friday_actual_close": {
+          "name": "friday_actual_close",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "implied_volatility": {
+          "name": "implied_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekly_volatility": {
+          "name": "weekly_volatility",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.weekly_iv_overrides": {
+      "name": "weekly_iv_overrides",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_symbol": {
+          "name": "contract_symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekly_iv": {
+          "name": "weekly_iv",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_updated": {
+          "name": "last_updated",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
