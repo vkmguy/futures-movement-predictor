@@ -14,14 +14,22 @@ interface VolatilityCardProps {
 }
 
 export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, daysRemaining, dailyIV, weeklyIV }: VolatilityCardProps) {
-  // Use manual IV values if available, otherwise fallback to contract values
-  const displayDailyVolatility = dailyIV ? dailyIV.dailyIv : dailyVolatility;
-  const displayWeeklyVolatility = weeklyIV ? weeklyIV.weeklyIv : weeklyVolatility;
+  // NEW METHODOLOGY: Calculate daily volatility on-the-fly to ensure it's always current
+  // Formula: dailyVol = annualizedIV × √(days/365)
+  const N = daysRemaining ?? 5; // Days remaining until expiration
+  
+  // Get annualized IV sources
+  const annualizedIVTactical = dailyIV?.dailyIv;
+  const annualizedIVStrategic = weeklyIV?.weeklyIv || weeklyVolatility;
+  
+  // Use tactical (daily) IV if available, otherwise strategic (weekly)
+  const annualizedIV = annualizedIVTactical || annualizedIVStrategic;
+  
+  // Calculate daily volatility using new formula
+  const displayDailyVolatility = annualizedIV * Math.sqrt(N / 365);
   
   const volatilityLevel = displayDailyVolatility < 0.01 ? "Low" : displayDailyVolatility < 0.02 ? "Moderate" : "High";
   const progressValue = Math.min((displayDailyVolatility / 0.03) * 100, 100);
-  const N = daysRemaining ?? 5; // Default to 5 if not provided
-  const scalingFactor = Math.sqrt(N);
   
   const getRelativeTime = (date: Date | undefined) => {
     if (!date) return "Never";
@@ -39,27 +47,16 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, days
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Daily σ</span>
-              {dailyIV && (
-                <Badge variant="default" className="text-xs">Manual Daily IV</Badge>
-              )}
-            </div>
-            <span className="text-lg font-mono font-bold" data-testid={`text-daily-volatility-${symbol}`}>
+            <span className="text-sm text-muted-foreground font-medium">Daily Volatility ({N}d)</span>
+            <span className="text-lg font-mono font-bold text-primary" data-testid={`text-daily-volatility-${symbol}`}>
               {(displayDailyVolatility * 100).toFixed(2)}%
             </span>
           </div>
-          {dailyIV && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>Updated {getRelativeTime(dailyIV.lastUpdated)}</span>
-            </div>
-          )}
           <Progress value={progressValue} className="h-2" />
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Level: {volatilityLevel}</span>
             <span className="text-xs text-muted-foreground font-mono">
-              σ_daily = σ_weekly / √{N}
+              IV × √({N}/365)
             </span>
           </div>
         </div>
@@ -67,23 +64,33 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, days
         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-card-border">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1">
-              <span className="text-xs text-muted-foreground">Weekly σ</span>
-              {weeklyIV && (
+              <span className="text-xs text-muted-foreground font-medium">Annualized IV</span>
+              {dailyIV && (
                 <Badge variant="default" className="text-xs">Manual</Badge>
               )}
             </div>
-            <span className="text-sm font-mono font-semibold" data-testid={`text-weekly-volatility-${symbol}`}>
-              {(displayWeeklyVolatility * 100).toFixed(2)}%
+            <span className="text-sm font-mono font-semibold" data-testid={`text-annualized-iv-${symbol}`}>
+              {annualizedIVTactical ? (annualizedIVTactical * 100).toFixed(2) : (annualizedIVStrategic * 100).toFixed(2)}%
             </span>
-            {weeklyIV && (
+            {dailyIV && (
+              <span className="text-xs text-muted-foreground">
+                Updated {getRelativeTime(dailyIV.lastUpdated)}
+              </span>
+            )}
+            {!dailyIV && weeklyIV && (
               <span className="text-xs text-muted-foreground">
                 Updated {getRelativeTime(weeklyIV.lastUpdated)}
               </span>
             )}
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Scaling Factor</span>
-            <span className="text-sm font-mono font-semibold">÷ {scalingFactor.toFixed(3)}</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground font-medium">IV Source</span>
+            <span className="text-sm font-mono font-medium">
+              {dailyIV ? "Tactical" : "Strategic"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {dailyIV ? "Daily updates" : "Weekly lock"}
+            </span>
           </div>
         </div>
       </CardContent>

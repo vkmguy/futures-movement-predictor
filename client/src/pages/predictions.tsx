@@ -281,7 +281,7 @@ export default function Predictions() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-card-border">
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground font-medium">
-                      Daily IV (Tactical)
+                      Annualized IV (Tactical)
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-mono font-semibold text-primary">
@@ -302,7 +302,7 @@ export default function Predictions() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground font-medium">
-                      Weekly IV (Strategic)
+                      Annualized IV (Strategic)
                     </span>
                     {weeklyIVs?.[prediction.contractSymbol] ? (
                       <>
@@ -328,9 +328,14 @@ export default function Predictions() {
                     )}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">Confidence</span>
-                    <span className="text-sm font-mono font-medium">
-                      {(prediction.confidence * 100).toFixed(0)}%
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Daily Volatility ({contract.daysRemaining}d)
+                    </span>
+                    <span className="text-sm font-mono font-semibold text-primary">
+                      {(prediction.dailyVolatility * 100).toFixed(2)}%
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {(prediction.confidence * 100).toFixed(0)}% confidence
                     </span>
                   </div>
                 </div>

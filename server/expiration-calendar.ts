@@ -225,13 +225,15 @@ export function getAllContractExpirations(currentDate: Date = new Date()): Contr
 
 /**
  * Calculate dynamic daily volatility based on days remaining
- * σ_daily = σ_weekly / √N where N = trading days remaining
+ * NEW METHODOLOGY (October 2025): σ_daily = annualizedIV × √(N/365) where N = trading days remaining
+ * This properly converts annualized IV to daily volatility accounting for time decay
  */
 export function calculateDynamicDailyVolatility(
-  weeklyVolatility: number,
+  annualizedIV: number,
   daysRemaining: number
 ): number {
-  // Ensure we have at least 1 day remaining to avoid division by zero
-  const N = Math.max(daysRemaining, 1);
-  return weeklyVolatility / Math.sqrt(N);
+  // Ensure we have at least 1 day remaining to avoid issues
+  const days = Math.max(daysRemaining, 1);
+  // NEW FORMULA: annualizedIV × √(days/365)
+  return annualizedIV * Math.sqrt(days / 365);
 }

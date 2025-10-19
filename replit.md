@@ -17,14 +17,20 @@ I prefer detailed explanations and iterative development. Ask before making majo
 -   **Navigation**: Sidebar with market overview and page links.
 
 ### Technical Implementations
--   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), `DailyIvHistory` (tactical IV tracking with timestamps), and `PriceAlert`.
+-   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility - **Note**: `contract.dailyVolatility` field now uses annualized formula `IV × √(days/365)` for consistency with prediction calculations), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), `DailyIvHistory` (tactical IV tracking with timestamps), and `PriceAlert`.
 -   **Dual-IV Tracking System** (October 2025):
     - **Daily IV (Tactical)**: Manually updated implied volatility stored in `daily_iv_history` table with date-based tracking and timestamps. Users update these values from real-time broker data for precise intraday trading decisions. Persists across nightly calculations and never gets reset.
     - **Weekly IV (Strategic)**: Manually updateable implied volatility stored in `weekly_iv_overrides` table with full historical tracking. Provides flexible strategic IV updates at any time (not just on Saturday). Can be updated independently from daily IV.
     - **Separation**: Daily predictions use latest daily IV (with weekly fallback), weekly tracker displays manual weekly IV when available. Nightly scheduler consumes but never modifies manual IV updates.
     - **IV Source Transparency** (October 2025): Complete transparency across all pages showing which IV values are driving predictions:
-      - **Dashboard**: VolatilityCard displays "Manual Daily IV" badge with timestamp when daily IV exists, "Manual" badge with timestamp for weekly IV. PredictionCard shows "Daily IV" badge when using manual daily IV for calculations.
-      - **Predictions Page**: Shows Daily IV (Tactical) with manual badge and timestamp, Weekly IV (Strategic) with manual badge and timestamp, clearly indicating which IV source is active for each prediction.
+      - **Dashboard** (Updated October 2025): 
+        - **VolatilityCard**: Calculates daily volatility on-the-fly using `annualizedIV × √(days/365)` formula to ensure real-time consistency. Displays "Daily Volatility (Nd)" with calculated value (e.g., 8.42% for 43 days), "Annualized IV" showing manual input value (e.g., 24.51%) with "Manual" badge, and "IV Source" indicating Tactical or Strategic. Formula display shows `IV × √(N/365)`.
+        - **PredictionCard**: Shows "Daily IV" badge when using manual daily IV for calculations.
+      - **Predictions Page** (Updated October 2025): Clear three-column layout showing:
+        - **Annualized IV (Tactical)**: Manual annualized IV from daily updates (e.g., 24.51%)
+        - **Annualized IV (Strategic)**: Manual annualized IV from weekly updates (e.g., 24.51%)
+        - **Daily Volatility (Xd)**: Calculated daily volatility showing days remaining (e.g., 8.42% for 43 days)
+        - Labels clearly distinguish between annualized inputs and calculated daily outputs
       - **Weekly Tracker**: Displays "Manual" badge with timestamp next to IV value when manual weekly IV override exists, providing full provenance for weekly predictions.
       - **Type Safety**: All pages use centralized `DailyIvHistory` and `WeeklyIvOverride` types from `@shared/schema`, eliminating interface duplication and ensuring type consistency.
       - **Timestamp Format**: Relative time display (e.g., "Updated 2h ago" or "Updated 1d ago") with clock icon for quick reference.
