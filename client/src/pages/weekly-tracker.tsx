@@ -62,14 +62,14 @@ export default function WeeklyTracker() {
       if (!contracts) return;
       
       const promises = contracts.map(contract => {
-        // Prioritize manual weekly IV over contract's weekly volatility
+        // NEW METHODOLOGY: Prioritize manual weekly IV over contract's weekly volatility
         const weeklyIV = weeklyIVMap?.[contract.symbol];
-        const weeklyVolatility = weeklyIV ? weeklyIV.weeklyIv : contract.weeklyVolatility || 0.20;
+        const annualizedIV = weeklyIV ? weeklyIV.weeklyIv : contract.weeklyVolatility || 0.20;
         
         return apiRequest('POST', '/api/weekly-moves/generate', {
           contractSymbol: contract.symbol,
           currentPrice: contract.currentPrice,
-          weeklyVolatility,
+          annualizedIV, // NEW: Using annualized IV parameter
         });
       });
       
@@ -148,6 +148,22 @@ export default function WeeklyTracker() {
     const diffMs = Date.now() - new Date(date).getTime();
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+  };
+
+  // NEW FEATURE: Get only remaining trading days in the week
+  // Monday → shows Mon-Fri, Tuesday → shows Tue-Fri, Wednesday → shows Wed-Fri, etc.
+  const getRemainingDays = (): DayOfWeek[] => {
+    const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    // Weekend: Show all days for upcoming week
+    if (today === 0 || today === 6) {
+      return [...DAYS];
+    }
+    
+    // Weekday: Show only remaining days (including today)
+    // Monday (1) → all 5 days, Tuesday (2) → 4 days, ..., Friday (5) → 1 day
+    const remainingDaysCount = 6 - today; // Monday=5, Tuesday=4, ..., Friday=1
+    return DAYS.slice(5 - remainingDaysCount); // Slice from appropriate start index
   };
 
   return (
@@ -235,7 +251,8 @@ export default function WeeklyTracker() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                  {DAYS.map((day) => {
+                  {/* NEW FEATURE: Only show remaining days in the week */}
+                  {getRemainingDays().map((day) => {
                     const { dayCapitalized, expectedHigh, expectedLow, actualClose } = getDayData(moves, day);
                     const contract = contractsBySymbol[moves.contractSymbol];
                     const tickSize = contract?.tickSize || 0.01;

@@ -97,14 +97,14 @@ export default function Predictions() {
       if (!contracts) return;
       
       const promises = contracts.map(contract => {
-        // Use daily IV if available, otherwise fallback to weekly volatility
+        // NEW METHODOLOGY: Use daily IV if available (tactical), otherwise fallback to weekly volatility
         const dailyIV = dailyIVs?.[contract.symbol];
-        const volatilityToUse = dailyIV?.dailyIv || contract.weeklyVolatility;
+        const annualizedIV = dailyIV?.dailyIv || contract.weeklyVolatility;
         
         return apiRequest('POST', '/api/generate-prediction', {
           contractSymbol: contract.symbol,
           currentPrice: contract.currentPrice,
-          weeklyVolatility: volatilityToUse, // Using daily IV for tactical predictions
+          annualizedIV: annualizedIV, // NEW: Using annualized IV for predictions
           model: model,
           recentPriceChange: contract.dailyChangePercent,
         });
