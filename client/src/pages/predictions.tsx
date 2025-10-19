@@ -25,6 +25,14 @@ interface DailyIVRecord {
   source: string;
 }
 
+interface WeeklyIVRecord {
+  contractSymbol: string;
+  weeklyIv: number;
+  date: Date;
+  lastUpdated: Date;
+  source: string;
+}
+
 export default function Predictions() {
   const [volatilityModel, setVolatilityModel] = useState<string>("standard");
   
@@ -56,6 +64,35 @@ export default function Predictions() {
             }
           } catch (error) {
             console.log(`No daily IV found for ${contract.symbol}, will use weekly volatility`);
+          }
+        })
+      );
+      
+      return ivMap;
+    },
+    enabled: !!contracts && contracts.length > 0,
+  });
+
+  // Fetch weekly IVs for all contracts
+  const { data: weeklyIVs } = useQuery<Record<string, WeeklyIVRecord>>({
+    queryKey: ['/api/weekly-iv', 'all'],
+    queryFn: async () => {
+      if (!contracts) return {};
+      
+      const ivMap: Record<string, WeeklyIVRecord> = {};
+      
+      // Fetch weekly IV for each contract
+      await Promise.all(
+        contracts.map(async (contract) => {
+          try {
+            const encodedSymbol = encodeURIComponent(contract.symbol);
+            const response = await fetch(`/api/weekly-iv/${encodedSymbol}`);
+            if (response.ok) {
+              const data = await response.json();
+              ivMap[contract.symbol] = data;
+            }
+          } catch (error) {
+            console.log(`No weekly IV found for ${contract.symbol}`);
           }
         })
       );
@@ -283,12 +320,28 @@ export default function Predictions() {
                     <span className="text-xs text-muted-foreground font-medium">
                       Weekly IV (Strategic)
                     </span>
-                    <span className="text-sm font-mono font-medium text-muted-foreground">
-                      {(contract.weeklyVolatility * 100).toFixed(2)}%
-                    </span>
-                    <span className="text-xs text-muted-foreground italic">
-                      Locked
-                    </span>
+                    {weeklyIVs?.[prediction.contractSymbol] ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono font-semibold text-primary">
+                            {(weeklyIVs[prediction.contractSymbol].weeklyIv * 100).toFixed(2)}%
+                          </span>
+                          <Badge variant="default" className="text-xs">Manual</Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          Updated {getRelativeTime(weeklyIVs[prediction.contractSymbol].lastUpdated)}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm font-mono font-medium text-muted-foreground">
+                          {(contract.weeklyVolatility * 100).toFixed(2)}%
+                        </span>
+                        <span className="text-xs text-muted-foreground italic">
+                          Locked (Saturday)
+                        </span>
+                      </>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground">Confidence</span>
