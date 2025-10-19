@@ -123,9 +123,72 @@ docker-compose ps
    - Health checks enabled
 
 4. **Migrations Service** (`futures-migrations`)
-   - One-shot initialization
-   - Runs database migrations
-   - Exits after completion
+   - One-shot initialization service
+   - Runs SQL migrations from `./migrations` folder
+   - Uses Drizzle ORM migration runner
+   - Ensures database schema is up-to-date
+   - Exits after successful completion
+
+## Database Migrations
+
+### Overview
+
+The application uses **Drizzle ORM migrations** to manage database schema changes. Migrations are:
+- **Version-controlled**: Stored in `./migrations` folder and committed to git
+- **Automatic**: Run automatically on container startup via the migrations service
+- **Idempotent**: Safe to run multiple times (already-applied migrations are skipped)
+
+### Migration Workflow
+
+#### 1. Development: Schema Changes
+```bash
+# After modifying shared/schema.ts, generate a new migration
+npm run db:generate
+
+# This creates a new SQL file in ./migrations/
+# Example: migrations/0001_brave_spider.sql
+```
+
+#### 2. Local Testing
+```bash
+# Apply migrations to your local database
+npm run db:migrate
+
+# OR use Docker
+docker-compose run --rm migrations npm run db:migrate
+```
+
+#### 3. Deployment
+```bash
+# Migrations run automatically when deploying
+docker-compose up -d
+
+# The migrations service will:
+# 1. Wait for PostgreSQL to be healthy
+# 2. Run all pending migrations
+# 3. Exit successfully
+# 4. Allow web/scheduler services to start
+```
+
+### Important Notes
+
+- ✅ **Always commit** migration files to version control
+- ✅ **Never edit** existing migration files after they're applied
+- ✅ **Generate new migrations** for schema changes instead
+- ⚠️ **Backup database** before running migrations in production
+
+### Migration Commands
+
+```bash
+# Generate migration from schema changes
+npm run db:generate
+
+# Apply migrations to database
+npm run db:migrate
+
+# Force push schema (development only - not recommended for production)
+npm run db:push
+```
 
 ## Configuration
 
@@ -360,7 +423,10 @@ docker-compose ps
 docker-compose logs migrations
 
 # Manually run migrations
-docker-compose run --rm migrations npm run db:push
+docker-compose run --rm migrations npm run db:migrate
+
+# If migrations folder is empty, generate migrations first (on host machine)
+npm run db:generate
 ```
 
 #### 4. Scheduler Not Running
