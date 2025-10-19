@@ -5,6 +5,7 @@ import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPr
 import { setupMarketSimulator } from "./market-simulator";
 import { calculateVolatility } from "./volatility-models";
 import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek, getWeekStartDate } from "./weekly-calculator";
+import { getNextMonday } from "@shared/utils";
 import { getMarketStatus } from "./market-hours";
 import { getLastTradedPrice, getAllLastTradedPrices } from "./yahoo-finance";
 import { runNightlyCalculation } from "./nightly-scheduler";
@@ -470,40 +471,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid input parameters" });
       }
 
-      const weekStartDate = getWeekStartDate();
-      const currentDay = getCurrentDayOfWeek();
+      // Weekly moves are forward-looking predictions for the upcoming week
+      // They should be generated on Saturday using Friday's data to predict next Monday-Friday
+      const nextMonday = getNextMonday();
 
-      // Check if weekly moves already exist for this contract
+      // Check if weekly moves already exist for this contract and upcoming week
       const existing = await storage.getWeeklyMoves(contractSymbol);
       
       // If data exists and it's for the same week, return existing data (don't regenerate)
-      if (existing && existing.weekStartDate.toISOString().split('T')[0] === weekStartDate.toISOString().split('T')[0]) {
-        console.log(`📅 Weekly moves already exist for ${contractSymbol} (week of ${weekStartDate.toISOString().split('T')[0]}), using existing data`);
+      if (existing && existing.weekStartDate.toISOString().split('T')[0] === nextMonday.toISOString().split('T')[0]) {
+        console.log(`📅 Weekly moves already exist for ${contractSymbol} (week of ${nextMonday.toISOString().split('T')[0]}), using existing data`);
         return res.status(200).json(existing);
       }
       
-      // If it's a new week or no existing data, generate new moves
-      const weekOpenPrice = currentPrice; // New week always starts with current price
+      // Generate moves for upcoming week starting next Monday
+      const weekOpenPrice = currentPrice; // Week will start with current Friday close as reference
       
       const calculatedMoves = calculateWeeklyExpectedMoves(
         contractSymbol,
         weekOpenPrice,
         weeklyVolatility,
-        weekStartDate,
-        currentDay
+        nextMonday, // Use next Monday as week start
+        "1" // Start with Monday (day 1)
       );
 
-      let result;
-      
-      if (existing && existing.weekStartDate.toISOString().split('T')[0] !== weekStartDate.toISOString().split('T')[0]) {
-        // New week - create fresh moves (replaces old week's data)
-        console.log(`🔄 New week detected for ${contractSymbol}, creating fresh weekly moves`);
-        result = await storage.createWeeklyMoves(calculatedMoves);
-      } else {
-        // No existing data - create new
-        console.log(`✨ Creating new weekly moves for ${contractSymbol}`);
-        result = await storage.createWeeklyMoves(calculatedMoves);
-      }
+      // Create new weekly moves for upcoming week
+      console.log(`✨ Creating weekly moves for ${contractSymbol} (week starting ${nextMonday.toISOString().split('T')[0]})`);
+      const result = await storage.createWeeklyMoves(calculatedMoves);
 
       res.status(201).json(result);
     } catch (error) {
