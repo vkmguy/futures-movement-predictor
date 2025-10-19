@@ -32,7 +32,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://futures:futures_password@postgres:5432/futures_db
-    command: ["npm", "run", "db:push"]
+    command: ["npm", "run", "db:migrate"]
     networks:
       - futures-network
 
