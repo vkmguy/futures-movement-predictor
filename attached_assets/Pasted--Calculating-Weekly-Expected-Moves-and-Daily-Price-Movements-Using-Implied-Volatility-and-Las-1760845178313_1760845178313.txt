@@ -1,0 +1,125 @@
+# Calculating Weekly Expected Moves and Daily Price Movements
+
+## Using Implied Volatility and Last Price for Futures Contracts
+
+---
+
+## Weekly Expected Move Calculation
+
+### Formula for Weekly Expected Move
+
+The weekly expected move is calculated using the implied volatility (IV) and the current price of the futures contract:
+
+$$ \text{Weekly Expected Move} = \text{Last Price} \times \text{IV} \times \sqrt{\frac{\text{Days to Expiration}}{365}} $$
+
+For a standard trading week (5 trading days):
+
+$$ \text{Weekly Expected Move} = \text{Last Price} \times \text{IV} \times \sqrt{\frac{5}{365}} $$
+
+Simplified:
+
+$$ \text{Weekly Expected Move} = \text{Last Price} \times \text{IV} \times 0.117 $$
+
+---
+
+## Daily Price Movement Calculations
+
+### Step-by-Step Process
+
+[Numbered List]
+1. **Calculate the Weekly Expected Move**:
+   - Use the formula above with the current implied volatility and last price
+   - This gives you the 1 standard deviation move for the week
+
+2. **Convert Weekly Move to Daily Volatility**:
+   
+   $$ \text{Daily Volatility} = \frac{\text{Weekly Expected Move}}{\sqrt{5}} $$
+
+3. **Calculate Daily Expected Moves for Each Day**:
+
+   For each trading day in the upcoming week:
+
+   $$ \text{Daily Expected Move}_{\text{Day N}} = \text{Current Price} \times \text{Daily Volatility} $$
+
+4. **Calculate Price Ranges for Each Day**:
+
+   **Upper Bound**: $$ \text{Current Price} + \text{Daily Expected Move} $$
+   
+   **Lower Bound**: $$ \text{Current Price} - \text{Daily Expected Move} $$
+
+---
+
+## Implementation Example
+
+### For Each Futures Contract (/NQ, /ES, /YM, /RTY, /GC, CL)
+
+| Contract | Last Price | IV (%) | Weekly Move | Daily Volatility | Mon Range | Tue Range | Wed Range | Thu Range | Fri Range |
+|----------|------------|---------|-------------|------------------|-----------|-----------|-----------|-----------|-----------|
+| /NQ | 15,000 | 20% | ±350.10 | ±156.62 | 14,843-15,157 | Update Daily | Update Daily | Update Daily | Update Daily |
+| /ES | 4,500 | 18% | ±94.23 | ±42.15 | 4,458-4,542 | Update Daily | Update Daily | Update Daily | Update Daily |
+
+---
+
+## Daily Update Process
+
+[Numbered List]
+1. **Monday Morning**:
+   - Calculate weekly expected move using Friday's closing price and current IV
+   - Set initial ranges for all 5 trading days
+
+2. **Tuesday Through Friday**:
+   - Update current price with previous day's close
+   - Recalculate remaining daily moves using updated price
+   - Adjust the number of remaining trading days in the week
+
+   $$ \text{Remaining Daily Moves} = \frac{\text{Remaining Weekly Move}}{\sqrt{\text{Remaining Days}}} $$
+
+3. **Intraday Updates** (Optional):
+   - Update calculations if IV changes significantly during the trading day
+   - Recalculate ranges based on current price and updated IV
+
+---
+
+## Key Considerations
+
+### Time Decay Adjustment
+
+As each day passes, adjust the calculation:
+
+$$ \text{Remaining Expected Move} = \text{Original Weekly Move} \times \sqrt{\frac{\text{Remaining Days}}{5}} $$
+
+### Volatility Clustering
+
+[Bulleted List]
+- Monitor IV changes throughout the week
+- Increase update frequency during high volatility periods
+- Consider using EWMA (Exponentially Weighted Moving Average) for smoother adjustments
+
+### Contract-Specific Adjustments
+
+**Equity Index Futures** (/NQ, /ES, /YM, /RTY):
+- Use standard 5-day trading week
+- Account for overnight gaps and market holidays
+
+**Commodity Futures** (/GC, CL):
+- Consider extended trading hours
+- Account for different market sessions and liquidity patterns
+
+---
+
+## Implementation Code Structure
+
+```python
+def calculate_weekly_expected_move(last_price, iv, days=5):
+    return last_price * iv * math.sqrt(days/365)
+
+def calculate_daily_volatility(weekly_move, trading_days=5):
+    return weekly_move / math.sqrt(trading_days)
+
+def update_daily_ranges(current_price, daily_volatility):
+    upper_bound = current_price + daily_volatility
+    lower_bound = current_price - daily_volatility
+    return upper_bound, lower_bound
+```
+
+This approach provides a systematic method for calculating and updating expected price movements throughout the trading week, incorporating real-time changes in both price and implied volatility.
