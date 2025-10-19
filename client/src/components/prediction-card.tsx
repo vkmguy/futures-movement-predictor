@@ -4,12 +4,21 @@ import { Badge } from "@/components/ui/badge";
 import type { DailyPrediction, FuturesContract } from "@shared/schema";
 import { roundToTick } from "@shared/utils";
 
+interface DailyIVRecord {
+  contractSymbol: string;
+  dailyIv: number;
+  date: Date;
+  lastUpdated: Date;
+  source: string;
+}
+
 interface PredictionCardProps {
   prediction: DailyPrediction;
   contract: FuturesContract;
+  dailyIV?: DailyIVRecord;
 }
 
-export function PredictionCard({ prediction, contract }: PredictionCardProps) {
+export function PredictionCard({ prediction, contract, dailyIV }: PredictionCardProps) {
   // Round predicted prices to valid tick increments
   const predictedMin = roundToTick(prediction.predictedMin, contract.tickSize);
   const predictedMax = roundToTick(prediction.predictedMax, contract.tickSize);
@@ -70,6 +79,11 @@ export function PredictionCard({ prediction, contract }: PredictionCardProps) {
           <span className="text-xs text-muted-foreground">
             Based on {(prediction.dailyVolatility * 100).toFixed(2)}% daily volatility
           </span>
+          {dailyIV && (
+            <Badge variant="default" className="text-xs ml-auto">
+              Daily IV
+            </Badge>
+          )}
         </div>
       </CardContent>
     </Card>
