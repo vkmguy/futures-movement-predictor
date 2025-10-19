@@ -186,6 +186,25 @@ export const insertIvUpdateSchema = createInsertSchema(ivUpdates).omit({
 export type InsertIvUpdate = z.infer<typeof insertIvUpdateSchema>;
 export type IvUpdate = typeof ivUpdates.$inferSelect;
 
+// Daily IV History - tracks daily IV updates with date-based records
+// This is separate from weekly IV to allow independent tactical adjustments
+export const dailyIvHistory = pgTable("daily_iv_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractSymbol: text("contract_symbol").notNull(),
+  dailyIv: real("daily_iv").notNull(), // IV as decimal (e.g., 0.042 for 4.2%)
+  date: timestamp("date").notNull(), // Date this IV is effective for
+  lastUpdated: timestamp("last_updated").notNull().defaultNow(), // When the record was created/updated
+  source: text("source").notNull().default('manual'), // 'manual' or 'system'
+});
+
+export const insertDailyIvHistorySchema = createInsertSchema(dailyIvHistory).omit({
+  id: true,
+  lastUpdated: true,
+});
+
+export type InsertDailyIvHistory = z.infer<typeof insertDailyIvHistorySchema>;
+export type DailyIvHistory = typeof dailyIvHistory.$inferSelect;
+
 // IV Batch Update Schema
 const VALID_CONTRACT_SYMBOLS = ["/NQ", "/ES", "/YM", "/RTY", "/GC", "/CL"] as const;
 

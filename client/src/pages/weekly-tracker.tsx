@@ -279,22 +279,35 @@ export default function WeeklyTracker() {
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Current Day:</span>
-                      <span className="ml-2 font-medium capitalize">{moves.currentDayOfWeek}</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold">Strategic IV (Locked)</span>
+                        <Badge variant="outline" className="text-xs">
+                          Week of {new Date(moves.weekStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        Generated: {new Date(moves.updatedAt).toLocaleDateString()} {new Date(moves.updatedAt).toLocaleTimeString()}
+                      </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Weekly Vol:</span>
-                      <span className="ml-2 font-mono">{(moves.weeklyVolatility * 100).toFixed(2)}%</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Daily Vol:</span>
-                      <span className="ml-2 font-mono">{(moves.weeklyVolatility / Math.sqrt(5) * 100).toFixed(2)}%</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Last Updated:</span>
-                      <span className="ml-2">{new Date(moves.updatedAt).toLocaleTimeString()}</span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Current Day:</span>
+                        <span className="ml-2 font-medium capitalize">{moves.currentDayOfWeek}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Weekly IV:</span>
+                        <span className="ml-2 font-mono font-semibold">{(moves.impliedVolatility * 100).toFixed(2)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Weekly Vol:</span>
+                        <span className="ml-2 font-mono">{(moves.weeklyVolatility * 100).toFixed(2)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Daily Vol:</span>
+                        <span className="ml-2 font-mono">{(moves.weeklyVolatility / Math.sqrt(5) * 100).toFixed(2)}%</span>
+                      </div>
                     </div>
                   </div>
                 </div>

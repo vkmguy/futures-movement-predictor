@@ -13,7 +13,10 @@ import {
   type InsertHistoricalDailyExpectedMoves,
   type IvUpdate,
   type InsertIvUpdate,
-  weeklyExpectedMoves
+  type DailyIvHistory,
+  type InsertDailyIvHistory,
+  weeklyExpectedMoves,
+  dailyIvHistory
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -64,6 +67,12 @@ export interface IStorage {
   getIvUpdateByDate(contractSymbol: string, date: Date): Promise<IvUpdate | undefined>;
   createIvUpdate(update: InsertIvUpdate): Promise<IvUpdate>;
   updateIvUpdate(id: string, update: Partial<IvUpdate>): Promise<IvUpdate | undefined>;
+
+  // Daily IV History
+  saveDailyIV(contractSymbol: string, dailyIv: number, date: Date, source?: string): Promise<DailyIvHistory>;
+  getLatestDailyIV(contractSymbol: string): Promise<DailyIvHistory | undefined>;
+  getDailyIVHistory(contractSymbol: string, limit?: number): Promise<DailyIvHistory[]>;
+  getDailyIVByDate(contractSymbol: string, date: Date): Promise<DailyIvHistory | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -616,6 +625,80 @@ export class MemStorage implements IStorage {
       }
     }
     return undefined;
+  }
+
+  // Daily IV History methods
+  async saveDailyIV(contractSymbol: string, dailyIv: number, date: Date, source: string = 'manual'): Promise<DailyIvHistory> {
+    // First check if we already have a record for this date
+    const existing = await this.getDailyIVByDate(contractSymbol, date);
+    
+    if (existing) {
+      // Update existing record
+      const results = await db
+        .update(dailyIvHistory)
+        .set({ 
+          dailyIv, 
+          source,
+          lastUpdated: new Date() 
+        })
+        .where(eq(dailyIvHistory.id, existing.id))
+        .returning();
+      
+      return results[0];
+    }
+    
+    // Create new record
+    const insertData: InsertDailyIvHistory = {
+      contractSymbol,
+      dailyIv,
+      date,
+      source,
+    };
+    
+    const results = await db
+      .insert(dailyIvHistory)
+      .values(insertData)
+      .returning();
+    
+    return results[0];
+  }
+
+  async getLatestDailyIV(contractSymbol: string): Promise<DailyIvHistory | undefined> {
+    const results = await db
+      .select()
+      .from(dailyIvHistory)
+      .where(eq(dailyIvHistory.contractSymbol, contractSymbol))
+      .orderBy(desc(dailyIvHistory.date), desc(dailyIvHistory.lastUpdated))
+      .limit(1);
+    
+    return results[0];
+  }
+
+  async getDailyIVHistory(contractSymbol: string, limit: number = 30): Promise<DailyIvHistory[]> {
+    const results = await db
+      .select()
+      .from(dailyIvHistory)
+      .where(eq(dailyIvHistory.contractSymbol, contractSymbol))
+      .orderBy(desc(dailyIvHistory.date))
+      .limit(limit);
+    
+    return results;
+  }
+
+  async getDailyIVByDate(contractSymbol: string, date: Date): Promise<DailyIvHistory | undefined> {
+    const dateStr = date.toISOString().split('T')[0];
+    const results = await db
+      .select()
+      .from(dailyIvHistory)
+      .where(
+        and(
+          eq(dailyIvHistory.contractSymbol, contractSymbol),
+          eq(dailyIvHistory.date, date)
+        )
+      )
+      .limit(1);
+    
+    return results[0];
   }
 }
 

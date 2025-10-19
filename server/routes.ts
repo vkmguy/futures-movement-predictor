@@ -208,6 +208,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Daily IV History endpoints
+  
+  // Save daily IV (creates or updates for today's date)
+  app.post("/api/daily-iv", async (req, res) => {
+    try {
+      const { contractSymbol, dailyIv, date, source } = req.body;
+      
+      if (!contractSymbol || typeof contractSymbol !== 'string') {
+        return res.status(400).json({ error: "contractSymbol is required" });
+      }
+      
+      if (typeof dailyIv !== 'number' || dailyIv < 0 || dailyIv > 1) {
+        return res.status(400).json({ error: "dailyIv must be a number between 0 and 1" });
+      }
+      
+      const effectiveDate = date ? new Date(date) : new Date();
+      const effectiveSource = source || 'manual';
+      
+      const savedIV = await storage.saveDailyIV(contractSymbol, dailyIv, effectiveDate, effectiveSource);
+      
+      console.log(`✅ Saved daily IV for ${contractSymbol}: ${(dailyIv * 100).toFixed(2)}% (date: ${effectiveDate.toISOString().split('T')[0]})`);
+      
+      res.json(savedIV);
+    } catch (error: any) {
+      console.error("Error saving daily IV:", error);
+      res.status(500).json({ error: error.message || "Failed to save daily IV" });
+    }
+  });
+  
+  // Get latest daily IV for a contract
+  app.get("/api/daily-iv/:symbol", async (req, res) => {
+    try {
+      const latestIV = await storage.getLatestDailyIV(req.params.symbol);
+      
+      if (!latestIV) {
+        return res.status(404).json({ error: "No daily IV found for this contract" });
+      }
+      
+      res.json(latestIV);
+    } catch (error) {
+      console.error("Error fetching latest daily IV:", error);
+      res.status(500).json({ error: "Failed to fetch daily IV" });
+    }
+  });
+  
+  // Get daily IV history for a contract
+  app.get("/api/daily-iv/:symbol/history", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
+      const history = await storage.getDailyIVHistory(req.params.symbol, limit);
+      
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching daily IV history:", error);
+      res.status(500).json({ error: "Failed to fetch daily IV history" });
+    }
+  });
+
   // Get historical prices
   app.get("/api/historical/:symbol", async (req, res) => {
     try {

@@ -10,12 +10,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Activity } from "lucide-react";
+import { Activity, Clock } from "lucide-react";
 import { ExportMenu } from "@/components/export-menu";
 import { exportToCSV, exportToJSON, preparePredictionsForExport } from "@/lib/export-utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DailyPrediction, FuturesContract } from "@shared/schema";
 import { roundToTick } from "@shared/utils";
+
+interface DailyIVRecord {
+  contractSymbol: string;
+  dailyIv: number;
+  date: Date;
+  lastUpdated: Date;
+  source: string;
+}
 
 export default function Predictions() {
   const [volatilityModel, setVolatilityModel] = useState<string>("standard");
@@ -28,6 +36,35 @@ export default function Predictions() {
     queryKey: ['/api/contracts'],
   });
 
+  // Fetch daily IVs for all contracts
+  const { data: dailyIVs, isLoading: isLoadingDailyIVs } = useQuery<Record<string, DailyIVRecord>>({
+    queryKey: ['/api/daily-iv', 'all'],
+    queryFn: async () => {
+      if (!contracts) return {};
+      
+      const ivMap: Record<string, DailyIVRecord> = {};
+      
+      // Fetch daily IV for each contract
+      await Promise.all(
+        contracts.map(async (contract) => {
+          try {
+            const encodedSymbol = encodeURIComponent(contract.symbol);
+            const response = await fetch(`/api/daily-iv/${encodedSymbol}`);
+            if (response.ok) {
+              const data = await response.json();
+              ivMap[contract.symbol] = data;
+            }
+          } catch (error) {
+            console.log(`No daily IV found for ${contract.symbol}, will use weekly volatility`);
+          }
+        })
+      );
+      
+      return ivMap;
+    },
+    enabled: !!contracts && contracts.length > 0,
+  });
+
   // Create contract lookup map for tick size access
   const contractsBySymbol = contracts?.reduce((map, contract) => {
     map[contract.symbol] = contract;
@@ -38,15 +75,19 @@ export default function Predictions() {
     mutationFn: async (model: string) => {
       if (!contracts) return;
       
-      const promises = contracts.map(contract => 
-        apiRequest('POST', '/api/generate-prediction', {
+      const promises = contracts.map(contract => {
+        // Use daily IV if available, otherwise fallback to weekly volatility
+        const dailyIV = dailyIVs?.[contract.symbol];
+        const volatilityToUse = dailyIV?.dailyIv || contract.weeklyVolatility;
+        
+        return apiRequest('POST', '/api/generate-prediction', {
           contractSymbol: contract.symbol,
           currentPrice: contract.currentPrice,
-          weeklyVolatility: contract.weeklyVolatility,
+          weeklyVolatility: volatilityToUse, // Using daily IV for tactical predictions
           model: model,
           recentPriceChange: contract.dailyChangePercent,
-        })
-      );
+        });
+      });
       
       return await Promise.all(promises);
     },
@@ -55,14 +96,29 @@ export default function Predictions() {
     },
   });
 
-  // Regenerate predictions when volatility model changes
+  // Regenerate predictions when volatility model changes or daily IVs update
   useEffect(() => {
-    if (contracts && contracts.length > 0) {
+    if (contracts && contracts.length > 0 && dailyIVs !== undefined) {
       regeneratePredictionsMutation.mutate(volatilityModel);
     }
-  }, [volatilityModel]);
+  }, [volatilityModel, dailyIVs]);
 
-  if (isLoading || regeneratePredictionsMutation.isPending) {
+  // Format relative time (e.g., "2 hours ago")
+  const getRelativeTime = (date: Date | undefined) => {
+    if (!date) return "Never";
+    const now = new Date();
+    const diffMs = now.getTime() - new Date(date).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  if (isLoading || isLoadingDailyIVs || regeneratePredictionsMutation.isPending) {
     return (
       <div className="space-y-6 p-6">
         <div className="flex items-center justify-between mb-6">
@@ -101,7 +157,7 @@ export default function Predictions() {
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">Movement Predictions</h1>
           <p className="text-muted-foreground mt-1">
-            Daily expected price ranges based on volatility analysis
+            Daily tactical predictions using latest IV values
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -131,6 +187,10 @@ export default function Predictions() {
           const contract = contractsBySymbol[prediction.contractSymbol];
           if (!contract) return null;
           
+          // Get daily IV data for this contract
+          const dailyIV = dailyIVs?.[prediction.contractSymbol];
+          const usingDailyIV = !!dailyIV;
+          
           // Round predicted prices to valid tick increments
           const predictedMin = roundToTick(prediction.predictedMin, contract.tickSize);
           const predictedMax = roundToTick(prediction.predictedMax, contract.tickSize);
@@ -151,6 +211,11 @@ export default function Predictions() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {usingDailyIV && (
+                      <Badge variant="outline" className="text-xs">
+                        Daily IV
+                      </Badge>
+                    )}
                     <Badge variant="outline" className="font-mono">
                       {volatilityModel === 'standard' ? '√5' : volatilityModel.toUpperCase()}
                     </Badge>
@@ -192,17 +257,37 @@ export default function Predictions() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-card-border">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-card-border">
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">Daily Volatility</span>
-                    <span className="text-sm font-mono font-medium">
-                      {(prediction.dailyVolatility * 100).toFixed(2)}%
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Daily IV (Tactical)
                     </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono font-semibold text-primary">
+                        {dailyIV ? `${(dailyIV.dailyIv * 100).toFixed(2)}%` : "Not set"}
+                      </span>
+                      {dailyIV && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {getRelativeTime(dailyIV.lastUpdated)}
+                        </span>
+                      )}
+                    </div>
+                    {!dailyIV && (
+                      <span className="text-xs text-muted-foreground italic">
+                        Using weekly IV
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">Weekly Volatility</span>
-                    <span className="text-sm font-mono font-medium">
-                      {(prediction.weeklyVolatility * 100).toFixed(2)}%
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Weekly IV (Strategic)
+                    </span>
+                    <span className="text-sm font-mono font-medium text-muted-foreground">
+                      {(contract.weeklyVolatility * 100).toFixed(2)}%
+                    </span>
+                    <span className="text-xs text-muted-foreground italic">
+                      Locked
                     </span>
                   </div>
                   <div className="flex flex-col gap-1">

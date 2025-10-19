@@ -132,9 +132,14 @@ export async function runNightlyCalculation() {
       // Get expiration information for this contract
       const expirationInfo = getContractExpirationInfo(quote.symbol, new Date());
       
+      // Try to get latest daily IV, fallback to weekly volatility
+      const latestDailyIV = await storage.getLatestDailyIV(quote.symbol);
+      const volatilityToUse = latestDailyIV?.dailyIv || contract.weeklyVolatility;
+      
       // Calculate dynamic daily volatility: σ_daily = σ_weekly / √N
+      // Use daily IV if available (tactical), otherwise use weekly volatility
       const dailyVolatility = calculateDynamicDailyVolatility(
-        contract.weeklyVolatility,
+        volatilityToUse,
         expirationInfo.daysRemaining
       );
       
@@ -151,7 +156,8 @@ export async function runNightlyCalculation() {
         isExpirationWeek: expirationInfo.isExpirationWeek ? 1 : 0,
       });
       
-      console.log(`📈 Updated ${quote.symbol}: $${quote.regularMarketPrice.toFixed(2)} (${expirationInfo.daysRemaining} days to expiration)`);
+      const ivSource = latestDailyIV ? 'daily IV' : 'weekly volatility';
+      console.log(`📈 Updated ${quote.symbol}: $${quote.regularMarketPrice.toFixed(2)} (${expirationInfo.daysRemaining} days, using ${ivSource})`);
     }
     
     // Step 3: Calculate next day expected moves based on updated data
@@ -162,8 +168,12 @@ export async function runNightlyCalculation() {
       const contract = await storage.getContractBySymbol(quote.symbol);
       if (!contract) continue;
       
-      // Get the updated daily volatility from contract (now using dynamic N)
+      // Get the updated daily volatility from contract (now using dynamic N with daily IV if available)
       const dailyVolatility = contract.dailyVolatility;
+      
+      // Get the source IV used for calculation
+      const latestDailyIV = await storage.getLatestDailyIV(quote.symbol);
+      const sourceIV = latestDailyIV?.dailyIv || contract.weeklyVolatility;
       
       // Calculate expected move ranges for next trading day (before tick rounding)
       const rawExpectedHigh = quote.regularMarketPrice + (quote.regularMarketPrice * dailyVolatility);
@@ -179,7 +189,7 @@ export async function runNightlyCalculation() {
         date: new Date(), // Tomorrow's prediction based on today's close
         lastTradedPrice: quote.regularMarketPrice,
         previousClose: quote.regularMarketPreviousClose,
-        weeklyVolatility: contract.weeklyVolatility,
+        weeklyVolatility: sourceIV, // Record the IV used (daily or weekly)
         dailyVolatility,
         expectedHigh,
         expectedLow,
@@ -192,7 +202,8 @@ export async function runNightlyCalculation() {
       results.push(created);
       
       const daysRemainingInfo = contract.daysRemaining ? ` (√${contract.daysRemaining} scaling)` : '';
-      console.log(`✨ ${quote.symbol} Expected: $${expectedLow.toFixed(2)} - $${expectedHigh.toFixed(2)}${daysRemainingInfo}`);
+      const ivSourceInfo = latestDailyIV ? ' [daily IV]' : ' [weekly IV]';
+      console.log(`✨ ${quote.symbol} Expected: $${expectedLow.toFixed(2)} - $${expectedHigh.toFixed(2)}${daysRemainingInfo}${ivSourceInfo}`);
     }
     
     // Mark this run as completed
