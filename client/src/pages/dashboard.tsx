@@ -16,6 +16,22 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { exportToCSV, exportToJSON, prepareContractsForExport, preparePredictionsForExport, prepareHistoricalForExport } from "@/lib/export-utils";
 import type { FuturesContract, DailyPrediction, HistoricalPrice } from "@shared/schema";
 
+interface DailyIVRecord {
+  contractSymbol: string;
+  dailyIv: number;
+  date: Date;
+  lastUpdated: Date;
+  source: string;
+}
+
+interface WeeklyIVRecord {
+  contractSymbol: string;
+  weeklyIv: number;
+  date: Date;
+  lastUpdated: Date;
+  source: string;
+}
+
 export default function Dashboard() {
   const [selectedContract, setSelectedContract] = useState<string>("ALL");
   const { toast } = useToast();
@@ -30,6 +46,62 @@ export default function Dashboard() {
 
   const { data: historicalData, isLoading: historicalLoading } = useQuery<HistoricalPrice[]>({
     queryKey: [`/api/historical/${encodeURIComponent(selectedContract)}`],
+  });
+
+  // Fetch daily IVs for all contracts
+  const { data: dailyIVs } = useQuery<Record<string, DailyIVRecord>>({
+    queryKey: ['/api/daily-iv', 'all-dashboard'],
+    queryFn: async () => {
+      if (!contracts) return {};
+      
+      const ivMap: Record<string, DailyIVRecord> = {};
+      
+      await Promise.all(
+        contracts.map(async (contract) => {
+          try {
+            const encodedSymbol = encodeURIComponent(contract.symbol);
+            const response = await fetch(`/api/daily-iv/${encodedSymbol}`);
+            if (response.ok) {
+              const data = await response.json();
+              ivMap[contract.symbol] = data;
+            }
+          } catch (error) {
+            console.log(`No daily IV found for ${contract.symbol}`);
+          }
+        })
+      );
+      
+      return ivMap;
+    },
+    enabled: !!contracts && contracts.length > 0,
+  });
+
+  // Fetch weekly IVs for all contracts
+  const { data: weeklyIVs } = useQuery<Record<string, WeeklyIVRecord>>({
+    queryKey: ['/api/weekly-iv', 'all-dashboard'],
+    queryFn: async () => {
+      if (!contracts) return {};
+      
+      const ivMap: Record<string, WeeklyIVRecord> = {};
+      
+      await Promise.all(
+        contracts.map(async (contract) => {
+          try {
+            const encodedSymbol = encodeURIComponent(contract.symbol);
+            const response = await fetch(`/api/weekly-iv/${encodedSymbol}`);
+            if (response.ok) {
+              const data = await response.json();
+              ivMap[contract.symbol] = data;
+            }
+          } catch (error) {
+            console.log(`No weekly IV found for ${contract.symbol}`);
+          }
+        })
+      );
+      
+      return ivMap;
+    },
+    enabled: !!contracts && contracts.length > 0,
   });
 
   const syncMutation = useMutation({
@@ -155,6 +227,8 @@ export default function Dashboard() {
             weeklyVolatility={contract.weeklyVolatility}
             dailyVolatility={contract.dailyVolatility}
             daysRemaining={contract.daysRemaining}
+            dailyIV={dailyIVs?.[contract.symbol]}
+            weeklyIV={weeklyIVs?.[contract.symbol]}
           />
         ))}
       </div>
@@ -165,8 +239,14 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredPredictions?.map((prediction) => {
             const contract = contractsBySymbol[prediction.contractSymbol];
+            const dailyIV = dailyIVs?.[prediction.contractSymbol];
             return contract ? (
-              <PredictionCard key={prediction.id} prediction={prediction} contract={contract} />
+              <PredictionCard 
+                key={prediction.id} 
+                prediction={prediction} 
+                contract={contract}
+                dailyIV={dailyIV}
+              />
             ) : null;
           })}
         </div>
