@@ -12,6 +12,14 @@ import { roundToTick } from "@shared/utils";
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
 type DayOfWeek = typeof DAYS[number];
 
+interface WeeklyIVRecord {
+  contractSymbol: string;
+  weeklyIv: number;
+  date: Date;
+  lastUpdated: Date;
+  source: string;
+}
+
 export default function WeeklyTracker() {
   const { toast } = useToast();
 
@@ -21,6 +29,34 @@ export default function WeeklyTracker() {
 
   const { data: contracts } = useQuery<FuturesContract[]>({
     queryKey: ['/api/contracts'],
+  });
+
+  // Fetch manual weekly IV overrides for all contracts
+  const { data: weeklyIVMap } = useQuery<Record<string, WeeklyIVRecord>>({
+    queryKey: ["/api/weekly-iv", "all-contracts"],
+    queryFn: async () => {
+      if (!contracts) return {};
+      
+      const ivMap: Record<string, WeeklyIVRecord> = {};
+      
+      await Promise.all(
+        contracts.map(async (contract) => {
+          try {
+            const encodedSymbol = encodeURIComponent(contract.symbol);
+            const response = await fetch(`/api/weekly-iv/${encodedSymbol}`);
+            if (response.ok) {
+              const data = await response.json();
+              ivMap[contract.symbol] = data;
+            }
+          } catch (error) {
+            console.log(`No manual weekly IV found for ${contract.symbol}`);
+          }
+        })
+      );
+      
+      return ivMap;
+    },
+    enabled: !!contracts && contracts.length > 0,
   });
 
   // Create contract lookup map for tick size access
@@ -156,8 +192,14 @@ export default function WeeklyTracker() {
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-end gap-2">
-                      <Badge variant="outline" className="font-mono">
-                        IV: {(moves.impliedVolatility * 100).toFixed(1)}%
+                      <Badge 
+                        variant={weeklyIVMap?.[moves.contractSymbol] ? "default" : "outline"} 
+                        className="font-mono"
+                      >
+                        IV: {weeklyIVMap?.[moves.contractSymbol] 
+                          ? (weeklyIVMap[moves.contractSymbol].weeklyIv * 100).toFixed(1) 
+                          : (moves.impliedVolatility * 100).toFixed(1)}%
+                        {weeklyIVMap?.[moves.contractSymbol] && " (Manual)"}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
                         Open: ${moves.weekOpenPrice.toFixed(2)}
@@ -279,34 +321,68 @@ export default function WeeklyTracker() {
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">Strategic IV (Locked)</span>
-                        <Badge variant="outline" className="text-xs">
-                          Week of {new Date(moves.weekStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </Badge>
+                  <div className="space-y-4">
+                    {/* Manual Weekly IV Override (if available) */}
+                    {weeklyIVMap?.[moves.contractSymbol] && (
+                      <div className="bg-primary/5 p-3 rounded-md border border-primary/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-primary">Manual Weekly IV (Active)</span>
+                            <Badge variant="default" className="text-xs">
+                              User Override
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            Updated: {new Date(weeklyIVMap[moves.contractSymbol].lastUpdated).toLocaleDateString()} {new Date(weeklyIVMap[moves.contractSymbol].lastUpdated).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Weekly IV:</span>
+                            <span className="ml-2 font-mono font-semibold text-primary">{(weeklyIVMap[moves.contractSymbol].weeklyIv * 100).toFixed(2)}%</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Source:</span>
+                            <span className="ml-2 font-medium capitalize">{weeklyIVMap[moves.contractSymbol].source}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Date:</span>
+                            <span className="ml-2">{new Date(weeklyIVMap[moves.contractSymbol].date).toLocaleDateString()}</span>
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        Generated: {new Date(moves.updatedAt).toLocaleDateString()} {new Date(moves.updatedAt).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Current Day:</span>
-                        <span className="ml-2 font-medium capitalize">{moves.currentDayOfWeek}</span>
+                    )}
+
+                    {/* Locked Strategic IV from Saturday Generation */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">Locked Strategic IV (Saturday Gen)</span>
+                          <Badge variant="outline" className="text-xs">
+                            Week of {new Date(moves.weekStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          Generated: {new Date(moves.updatedAt).toLocaleDateString()} {new Date(moves.updatedAt).toLocaleTimeString()}
+                        </span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Weekly IV:</span>
-                        <span className="ml-2 font-mono font-semibold">{(moves.impliedVolatility * 100).toFixed(2)}%</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Weekly Vol:</span>
-                        <span className="ml-2 font-mono">{(moves.weeklyVolatility * 100).toFixed(2)}%</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Daily Vol:</span>
-                        <span className="ml-2 font-mono">{(moves.weeklyVolatility / Math.sqrt(5) * 100).toFixed(2)}%</span>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Current Day:</span>
+                          <span className="ml-2 font-medium capitalize">{moves.currentDayOfWeek}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Weekly IV:</span>
+                          <span className="ml-2 font-mono font-semibold">{(moves.impliedVolatility * 100).toFixed(2)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Weekly Vol:</span>
+                          <span className="ml-2 font-mono">{(moves.weeklyVolatility * 100).toFixed(2)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Daily Vol:</span>
+                          <span className="ml-2 font-mono">{(moves.weeklyVolatility / Math.sqrt(5) * 100).toFixed(2)}%</span>
+                        </div>
                       </div>
                     </div>
                   </div>
