@@ -14,8 +14,12 @@ interface VolatilityCardProps {
 }
 
 export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, daysRemaining, dailyIV, weeklyIV }: VolatilityCardProps) {
-  const volatilityLevel = dailyVolatility < 0.01 ? "Low" : dailyVolatility < 0.02 ? "Moderate" : "High";
-  const progressValue = Math.min((dailyVolatility / 0.03) * 100, 100);
+  // Use manual IV values if available, otherwise fallback to contract values
+  const displayDailyVolatility = dailyIV ? dailyIV.dailyIv : dailyVolatility;
+  const displayWeeklyVolatility = weeklyIV ? weeklyIV.weeklyIv : weeklyVolatility;
+  
+  const volatilityLevel = displayDailyVolatility < 0.01 ? "Low" : displayDailyVolatility < 0.02 ? "Moderate" : "High";
+  const progressValue = Math.min((displayDailyVolatility / 0.03) * 100, 100);
   const N = daysRemaining ?? 5; // Default to 5 if not provided
   const scalingFactor = Math.sqrt(N);
   
@@ -42,7 +46,7 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, days
               )}
             </div>
             <span className="text-lg font-mono font-bold" data-testid={`text-daily-volatility-${symbol}`}>
-              {(dailyVolatility * 100).toFixed(2)}%
+              {(displayDailyVolatility * 100).toFixed(2)}%
             </span>
           </div>
           {dailyIV && (
@@ -69,7 +73,7 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, days
               )}
             </div>
             <span className="text-sm font-mono font-semibold" data-testid={`text-weekly-volatility-${symbol}`}>
-              {(weeklyVolatility * 100).toFixed(2)}%
+              {(displayWeeklyVolatility * 100).toFixed(2)}%
             </span>
             {weeklyIV && (
               <span className="text-xs text-muted-foreground">
