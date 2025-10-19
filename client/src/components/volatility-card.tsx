@@ -14,8 +14,9 @@ interface VolatilityCardProps {
 }
 
 export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, daysRemaining, dailyIV, weeklyIV }: VolatilityCardProps) {
-  // NEW METHODOLOGY: Calculate daily volatility on-the-fly to ensure it's always current
-  // Formula: dailyVol = annualizedIV × √(days/365)
+  // UPDATED METHODOLOGY: Calculate daily volatility on-the-fly to ensure it's always current
+  // Formula: dailyVol = annualizedIV × √(days/252)
+  // Uses 252 trading days per year (industry standard)
   const N = daysRemaining ?? 5; // Days remaining until expiration
   
   // Get annualized IV sources
@@ -25,8 +26,8 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, days
   // Use tactical (daily) IV if available, otherwise strategic (weekly)
   const annualizedIV = annualizedIVTactical || annualizedIVStrategic;
   
-  // Calculate daily volatility using new formula
-  const displayDailyVolatility = annualizedIV * Math.sqrt(N / 365);
+  // Calculate daily volatility using new formula (252 trading days)
+  const displayDailyVolatility = annualizedIV * Math.sqrt(N / 252);
   
   const volatilityLevel = displayDailyVolatility < 0.01 ? "Low" : displayDailyVolatility < 0.02 ? "Moderate" : "High";
   const progressValue = Math.min((displayDailyVolatility / 0.03) * 100, 100);
@@ -56,7 +57,7 @@ export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, days
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Level: {volatilityLevel}</span>
             <span className="text-xs text-muted-foreground font-mono">
-              IV × √({N}/365)
+              IV × √({N}/252)
             </span>
           </div>
         </div>

@@ -60,7 +60,8 @@ function shouldGenerateWeeklyMoves(): boolean {
 
 /**
  * Generate weekly expected moves for all contracts
- * NEW METHODOLOGY: Uses annualized IV with weeklyMove = price × iv × √(5/365)
+ * UPDATED METHODOLOGY: Uses annualized IV with weeklyMove = price × iv × √(5/252)
+ * Uses 252 trading days per year (industry standard)
  */
 export async function generateWeeklyMovesForAllContracts() {
   try {
@@ -118,7 +119,8 @@ export async function generateWeeklyMovesForAllContracts() {
 
 /**
  * Run nightly calculation to update prices and daily predictions
- * NEW METHODOLOGY: Uses expectedMove = price × iv × √(daysToExpiration/365)
+ * UPDATED METHODOLOGY: Uses expectedMove = price × iv × √(daysToExpiration/252)
+ * Uses 252 trading days per year (industry standard)
  */
 export async function runNightlyCalculation() {
   try {

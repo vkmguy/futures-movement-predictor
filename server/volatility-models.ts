@@ -1,7 +1,8 @@
 /**
  * Advanced Volatility Models
- * NEW METHODOLOGY (October 2025): Uses annualized IV with √(days/365) scaling
- * Formula: expectedMove = currentPrice × iv × √(daysToExpiration/365)
+ * UPDATED METHODOLOGY (October 2025): Uses annualized IV with √(days/252) scaling
+ * Uses 252 trading days per year (industry standard)
+ * Formula: expectedMove = currentPrice × iv × √(daysToExpiration/252)
  */
 
 export interface VolatilityResult {
@@ -14,16 +15,16 @@ export interface VolatilityResult {
 
 /**
  * NEW FORMULA: Standard volatility calculation using annualized IV
- * dailyMove = currentPrice × iv × √(daysToExpiration/365)
- * This replaces the old σ_daily = σ_weekly / √N formula
+ * dailyMove = currentPrice × iv × √(daysToExpiration/252)
+ * Uses 252 trading days per year (industry standard)
  */
 export function standardVolatilityCalculation(
   currentPrice: number,
   annualizedIV: number,
   daysToExpiration: number
 ): VolatilityResult {
-  // dailyMove = currentPrice × iv × √(daysToExpiration/365)
-  const dailyMove = currentPrice * annualizedIV * Math.sqrt(daysToExpiration / 365);
+  // dailyMove = currentPrice × iv × √(daysToExpiration/252)
+  const dailyMove = currentPrice * annualizedIV * Math.sqrt(daysToExpiration / 252);
   
   return {
     model: 'Standard',
@@ -58,8 +59,8 @@ export function garchVolatility(
   const forecastVariance = omega + alpha * recentShock + beta * prevVariance;
   const adjustedIV = Math.sqrt(forecastVariance);
   
-  // Apply new formula with adjusted IV
-  const dailyMove = currentPrice * adjustedIV * Math.sqrt(daysToExpiration / 365);
+  // Apply new formula with adjusted IV (252 trading days)
+  const dailyMove = currentPrice * adjustedIV * Math.sqrt(daysToExpiration / 252);
   
   return {
     model: 'GARCH(1,1)',
@@ -91,8 +92,8 @@ export function ewmaVolatility(
   const forecastVariance = lambda * prevVariance + (1 - lambda) * Math.pow(recentReturn, 2);
   const adjustedIV = Math.sqrt(forecastVariance);
   
-  // Apply new formula with adjusted IV
-  const dailyMove = currentPrice * adjustedIV * Math.sqrt(daysToExpiration / 365);
+  // Apply new formula with adjusted IV (252 trading days)
+  const dailyMove = currentPrice * adjustedIV * Math.sqrt(daysToExpiration / 252);
   
   return {
     model: 'EWMA',
@@ -105,7 +106,8 @@ export function ewmaVolatility(
 
 /**
  * Calculate expected move using selected model
- * NEW METHODOLOGY: All models now use currentPrice × iv × √(days/365)
+ * UPDATED METHODOLOGY: All models now use currentPrice × iv × √(days/252)
+ * Uses 252 trading days per year (industry standard)
  */
 export function calculateExpectedMove(
   model: 'standard' | 'garch' | 'ewma',

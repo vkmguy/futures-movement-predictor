@@ -2,7 +2,8 @@ import type { InsertWeeklyExpectedMoves } from "@shared/schema";
 
 /**
  * Calculate weekly expected moves from Monday to Friday
- * NEW METHODOLOGY (October 2025): weeklyMove = lastPrice × iv × √(5/365)
+ * UPDATED METHODOLOGY (October 2025): weeklyMove = lastPrice × iv × √(5/252)
+ * Uses 252 trading days per year (industry standard)
  * Then calculates daily moves based on remaining days in the week
  */
 
@@ -14,7 +15,8 @@ interface DailyMove {
 
 /**
  * NEW FORMULA: Calculate weekly expected moves using annualized IV
- * weeklyMove = lastPrice × iv × √(5/365) ≈ lastPrice × iv × 0.117
+ * weeklyMove = lastPrice × iv × √(5/252) ≈ lastPrice × iv × 0.141
+ * Uses 252 trading days per year (industry standard)
  * Then for each day: dailyMove = currentPrice × (weeklyMove / √5) or recalculate based on remaining days
  */
 export function calculateWeeklyExpectedMoves(
@@ -24,8 +26,8 @@ export function calculateWeeklyExpectedMoves(
   weekStartDate: Date,
   currentDayOfWeek: string
 ): InsertWeeklyExpectedMoves {
-  // NEW FORMULA: Weekly expected move = lastPrice × iv × √(5/365)
-  const weeklyExpectedMove = currentPrice * annualizedIV * Math.sqrt(5 / 365);
+  // NEW FORMULA: Weekly expected move = lastPrice × iv × √(5/252)
+  const weeklyExpectedMove = currentPrice * annualizedIV * Math.sqrt(5 / 252);
   
   // Daily volatility derived from weekly: dailyVol = weeklyMove / √5
   const dailyVolatility = weeklyExpectedMove / Math.sqrt(5);

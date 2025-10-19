@@ -53,12 +53,11 @@ function getThirdFriday(year: number, month: number): Date {
 
 /**
  * Get expiration date for equity index futures
- * Equity indices (/NQ, /ES, /YM, /RTY) expire on the third Friday of the contract month
+ * Equity indices (/NQ, /ES, /YM, /RTY) expire WEEKLY on Fridays (1-5 days)
  */
 function getEquityIndexExpiration(contractMonth: Date): Date {
-  const year = contractMonth.getFullYear();
-  const month = contractMonth.getMonth() + 1;
-  return getThirdFriday(year, month);
+  // For weekly contracts, return the next Friday
+  return getNextFriday(contractMonth);
 }
 
 /**
@@ -139,6 +138,35 @@ export function calculateTradingDays(startDate: Date, endDate: Date): number {
 }
 
 /**
+ * Get the next Friday from a given date
+ * Handles ET timezone correctly for Friday market close (5 PM ET)
+ * Both weekday and hour are determined in America/New_York timezone
+ */
+function getNextFriday(fromDate: Date): Date {
+  // Convert to ET timezone to get both day and hour
+  const etTimeString = fromDate.toLocaleString('en-US', { timeZone: 'America/New_York' });
+  const etDate = new Date(etTimeString);
+  const etDayOfWeek = getDay(etDate); // 0 = Sunday, 5 = Friday
+  const etHour = etDate.getHours();
+  
+  // Calculate days until Friday based on ET timezone
+  const daysUntilFriday = etDayOfWeek === 5 ? 7 : (5 - etDayOfWeek + 7) % 7;
+  
+  // If it's Friday in ET timezone
+  if (etDayOfWeek === 5) {
+    // If it's Friday before 5 PM ET (17:00), expiration is today
+    if (etHour < 17) {
+      return fromDate;
+    }
+    // After market close, roll to next Friday
+    return addDays(fromDate, 7);
+  }
+  
+  // For other days, add days until next Friday
+  return addDays(fromDate, daysUntilFriday === 0 ? 7 : daysUntilFriday);
+}
+
+/**
  * Get current contract month for a futures symbol
  * This uses the front month (nearest expiration) by default
  */
@@ -147,31 +175,12 @@ function getCurrentContractMonth(symbol: string): Date {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
   
-  // For equity indices, use quarterly expirations (Mar, Jun, Sep, Dec)
+  // For equity indices, use WEEKLY Friday expirations (1-5 days)
+  // These contracts expire every Friday, not quarterly
   if (['/NQ', '/ES', '/YM', '/RTY'].includes(symbol)) {
-    const quarterlyMonths = [2, 5, 8, 11]; // March, June, September, December (0-indexed)
-    
-    // Find the next quarterly month
-    let nextQuarterMonth = quarterlyMonths.find(m => m >= currentMonth);
-    
-    if (nextQuarterMonth === undefined) {
-      // Roll to next year's March
-      return new Date(currentYear + 1, 2, 1);
-    }
-    
-    const contractMonth = new Date(currentYear, nextQuarterMonth, 1);
-    const expiration = getEquityIndexExpiration(contractMonth);
-    
-    // If expiration has passed, move to next quarter
-    if (isBefore(expiration, now)) {
-      const nextQuarterIndex = quarterlyMonths.indexOf(nextQuarterMonth) + 1;
-      if (nextQuarterIndex >= quarterlyMonths.length) {
-        return new Date(currentYear + 1, 2, 1);
-      }
-      return new Date(currentYear, quarterlyMonths[nextQuarterIndex], 1);
-    }
-    
-    return contractMonth;
+    // Return a date object representing the current week
+    // The actual expiration will be calculated by getEquityIndexExpiration
+    return now;
   }
   
   // For commodities, use monthly contracts
@@ -225,7 +234,8 @@ export function getAllContractExpirations(currentDate: Date = new Date()): Contr
 
 /**
  * Calculate dynamic daily volatility based on days remaining
- * NEW METHODOLOGY (October 2025): σ_daily = annualizedIV × √(N/365) where N = trading days remaining
+ * UPDATED METHODOLOGY (October 2025): σ_daily = annualizedIV × √(N/252) where N = trading days remaining
+ * Uses 252 trading days per year (industry standard) instead of 365 calendar days
  * This properly converts annualized IV to daily volatility accounting for time decay
  */
 export function calculateDynamicDailyVolatility(
@@ -234,6 +244,6 @@ export function calculateDynamicDailyVolatility(
 ): number {
   // Ensure we have at least 1 day remaining to avoid issues
   const days = Math.max(daysRemaining, 1);
-  // NEW FORMULA: annualizedIV × √(days/365)
-  return annualizedIV * Math.sqrt(days / 365);
+  // FORMULA: annualizedIV × √(days/252) - using 252 trading days/year
+  return annualizedIV * Math.sqrt(days / 252);
 }

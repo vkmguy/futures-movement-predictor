@@ -442,7 +442,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate prediction based on current price and volatility
-  // NEW METHODOLOGY: Uses expectedMove = currentPrice × iv × √(daysToExpiration/365)
+  // UPDATED METHODOLOGY: Uses expectedMove = currentPrice × iv × √(daysToExpiration/252)
+  // Uses 252 trading days per year (industry standard)
   app.post("/api/generate-prediction", async (req, res) => {
     try {
       const { contractSymbol, currentPrice, annualizedIV, model = 'standard', recentPriceChange } = req.body;
@@ -587,7 +588,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate weekly expected moves
-  // NEW METHODOLOGY: Uses weeklyMove = currentPrice × iv × √(5/365)
+  // UPDATED METHODOLOGY: Uses weeklyMove = currentPrice × iv × √(5/252)
+  // Uses 252 trading days per year (industry standard)
   app.post("/api/weekly-moves/generate", async (req, res) => {
     try {
       const { contractSymbol, currentPrice, annualizedIV } = req.body;
@@ -610,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Generate moves for upcoming week starting next Monday
-      // NEW FORMULA: weeklyMove = currentPrice × iv × √(5/365)
+      // NEW FORMULA: weeklyMove = currentPrice × iv × √(5/252)
       const weekOpenPrice = currentPrice;
       
       const calculatedMoves = calculateWeeklyExpectedMoves(
