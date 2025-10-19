@@ -8,10 +8,10 @@ This guide walks you through setting up proper database migrations for the Futur
 
 The following migration infrastructure has been set up for you:
 
-1. ✅ **Migration runner script** (`server/migrate.ts`)
-2. ✅ **Initial migration files** generated in `./migrations/`
-3. ✅ **Docker configuration** updated to run migrations on startup
-4. ✅ **Documentation** updated in `DOCKER-DEPLOYMENT.md`
+1. ✅ **Initial migration files** generated in `./migrations/`
+2. ✅ **Docker configuration** updated to run migrations on startup
+3. ✅ **Documentation** updated in `DOCKER-DEPLOYMENT.md`
+4. ✅ **Drizzle Kit** migration system configured
 
 ## 📝 Manual Steps Required
 
@@ -28,7 +28,7 @@ Add the following two scripts to your `package.json` file in the `"scripts"` sec
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",        // ← ADD THIS LINE
-    "db:migrate": "tsx server/migrate.ts"         // ← ADD THIS LINE
+    "db:migrate": "drizzle-kit migrate"           // ← ADD THIS LINE
   }
 }
 ```
@@ -49,11 +49,7 @@ After updating `package.json`, verify the migration system works:
 npm run db:migrate
 ```
 
-You should see:
-```
-🔄 Starting database migrations...
-✅ Migrations completed successfully
-```
+You should see output indicating migrations were applied successfully.
 
 #### Option B: Test with Local Docker
 
@@ -186,11 +182,11 @@ docker-compose up -d  # Migrations run on startup
 
 ### Different database drivers (Neon vs local PostgreSQL)
 
-The migration script (`server/migrate.ts`) uses the standard `postgres` driver, which works with both:
-- **Neon databases** (used in Replit)
-- **Local PostgreSQL** (used in Docker)
+Drizzle Kit's `migrate` command automatically detects your database connection from `drizzle.config.ts` and works with both:
+- **Neon databases** (used in Replit via `@neondatabase/serverless`)
+- **Local PostgreSQL** (used in Docker via standard `postgres` driver)
 
-No changes needed - it's environment-aware!
+The system auto-detects which driver to use based on your `DATABASE_URL` - no manual configuration needed!
 
 ## 📚 Additional Resources
 
