@@ -3,22 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, TrendingUp, TrendingDown, RefreshCw, Check, Trash2 } from "lucide-react";
+import { Calendar, TrendingUp, TrendingDown, RefreshCw, Check, Trash2, Clock } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { WeeklyExpectedMoves, FuturesContract } from "@shared/schema";
+import type { WeeklyExpectedMoves, FuturesContract, WeeklyIvOverride } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { roundToTick } from "@shared/utils";
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
 type DayOfWeek = typeof DAYS[number];
-
-interface WeeklyIVRecord {
-  contractSymbol: string;
-  weeklyIv: number;
-  date: Date;
-  lastUpdated: Date;
-  source: string;
-}
 
 export default function WeeklyTracker() {
   const { toast } = useToast();
@@ -32,12 +24,12 @@ export default function WeeklyTracker() {
   });
 
   // Fetch manual weekly IV overrides for all contracts
-  const { data: weeklyIVMap } = useQuery<Record<string, WeeklyIVRecord>>({
+  const { data: weeklyIVMap } = useQuery<Record<string, WeeklyIvOverride>>({
     queryKey: ["/api/weekly-iv", "all-contracts"],
     queryFn: async () => {
       if (!contracts) return {};
       
-      const ivMap: Record<string, WeeklyIVRecord> = {};
+      const ivMap: Record<string, WeeklyIvOverride> = {};
       
       await Promise.all(
         contracts.map(async (contract) => {
@@ -147,6 +139,13 @@ export default function WeeklyTracker() {
     return 'within';
   };
 
+  const getRelativeTime = (date: Date | undefined) => {
+    if (!date) return "Never";
+    const diffMs = Date.now() - new Date(date).getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -192,15 +191,27 @@ export default function WeeklyTracker() {
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-end gap-2">
-                      <Badge 
-                        variant={weeklyIVMap?.[moves.contractSymbol] ? "default" : "outline"} 
-                        className="font-mono"
-                      >
-                        IV: {weeklyIVMap?.[moves.contractSymbol] 
-                          ? (weeklyIVMap[moves.contractSymbol].weeklyIv * 100).toFixed(1) 
-                          : (moves.impliedVolatility * 100).toFixed(1)}%
-                        {weeklyIVMap?.[moves.contractSymbol] && " (Manual)"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={weeklyIVMap?.[moves.contractSymbol] ? "default" : "outline"} 
+                          className="font-mono"
+                        >
+                          IV: {weeklyIVMap?.[moves.contractSymbol] 
+                            ? (weeklyIVMap[moves.contractSymbol].weeklyIv * 100).toFixed(1) 
+                            : (moves.impliedVolatility * 100).toFixed(1)}%
+                        </Badge>
+                        {weeklyIVMap?.[moves.contractSymbol] && (
+                          <Badge variant="default" className="text-xs">
+                            Manual
+                          </Badge>
+                        )}
+                      </div>
+                      {weeklyIVMap?.[moves.contractSymbol] && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>Updated {getRelativeTime(weeklyIVMap[moves.contractSymbol].lastUpdated)}</span>
+                        </div>
+                      )}
                       <span className="text-sm text-muted-foreground">
                         Open: ${moves.weekOpenPrice.toFixed(2)}
                       </span>

@@ -1,21 +1,13 @@
 import { TrendingUp, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { DailyPrediction, FuturesContract } from "@shared/schema";
+import type { DailyPrediction, FuturesContract, DailyIvHistory } from "@shared/schema";
 import { roundToTick } from "@shared/utils";
-
-interface DailyIVRecord {
-  contractSymbol: string;
-  dailyIv: number;
-  date: Date;
-  lastUpdated: Date;
-  source: string;
-}
 
 interface PredictionCardProps {
   prediction: DailyPrediction;
   contract: FuturesContract;
-  dailyIV?: DailyIVRecord;
+  dailyIV?: DailyIvHistory;
 }
 
 export function PredictionCard({ prediction, contract, dailyIV }: PredictionCardProps) {

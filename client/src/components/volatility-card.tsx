@@ -2,30 +2,15 @@ import { Activity, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-
-interface DailyIVRecord {
-  contractSymbol: string;
-  dailyIv: number;
-  date: Date;
-  lastUpdated: Date;
-  source: string;
-}
-
-interface WeeklyIVRecord {
-  contractSymbol: string;
-  weeklyIv: number;
-  date: Date;
-  lastUpdated: Date;
-  source: string;
-}
+import type { DailyIvHistory, WeeklyIvOverride } from "@shared/schema";
 
 interface VolatilityCardProps {
   symbol: string;
   weeklyVolatility: number;
   dailyVolatility: number;
   daysRemaining?: number | null;
-  dailyIV?: DailyIVRecord;
-  weeklyIV?: WeeklyIVRecord;
+  dailyIV?: DailyIvHistory;
+  weeklyIV?: WeeklyIvOverride;
 }
 
 export function VolatilityCard({ symbol, weeklyVolatility, dailyVolatility, daysRemaining, dailyIV, weeklyIV }: VolatilityCardProps) {

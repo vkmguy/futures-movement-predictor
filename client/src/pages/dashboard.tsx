@@ -14,23 +14,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { exportToCSV, exportToJSON, prepareContractsForExport, preparePredictionsForExport, prepareHistoricalForExport } from "@/lib/export-utils";
-import type { FuturesContract, DailyPrediction, HistoricalPrice } from "@shared/schema";
-
-interface DailyIVRecord {
-  contractSymbol: string;
-  dailyIv: number;
-  date: Date;
-  lastUpdated: Date;
-  source: string;
-}
-
-interface WeeklyIVRecord {
-  contractSymbol: string;
-  weeklyIv: number;
-  date: Date;
-  lastUpdated: Date;
-  source: string;
-}
+import type { FuturesContract, DailyPrediction, HistoricalPrice, DailyIvHistory, WeeklyIvOverride } from "@shared/schema";
 
 export default function Dashboard() {
   const [selectedContract, setSelectedContract] = useState<string>("ALL");
@@ -49,12 +33,12 @@ export default function Dashboard() {
   });
 
   // Fetch daily IVs for all contracts
-  const { data: dailyIVs } = useQuery<Record<string, DailyIVRecord>>({
+  const { data: dailyIVs } = useQuery<Record<string, DailyIvHistory>>({
     queryKey: ['/api/daily-iv', 'all-dashboard'],
     queryFn: async () => {
       if (!contracts) return {};
       
-      const ivMap: Record<string, DailyIVRecord> = {};
+      const ivMap: Record<string, DailyIvHistory> = {};
       
       await Promise.all(
         contracts.map(async (contract) => {
@@ -77,12 +61,12 @@ export default function Dashboard() {
   });
 
   // Fetch weekly IVs for all contracts
-  const { data: weeklyIVs } = useQuery<Record<string, WeeklyIVRecord>>({
+  const { data: weeklyIVs } = useQuery<Record<string, WeeklyIvOverride>>({
     queryKey: ['/api/weekly-iv', 'all-dashboard'],
     queryFn: async () => {
       if (!contracts) return {};
       
-      const ivMap: Record<string, WeeklyIVRecord> = {};
+      const ivMap: Record<string, WeeklyIvOverride> = {};
       
       await Promise.all(
         contracts.map(async (contract) => {
