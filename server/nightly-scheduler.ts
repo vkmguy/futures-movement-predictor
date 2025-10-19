@@ -2,9 +2,10 @@ import { storage } from "./storage";
 import { getAllLastTradedPrices } from "./yahoo-finance";
 import { getMarketStatus } from "./market-hours";
 import { insertHistoricalDailyExpectedMovesSchema } from "@shared/schema";
-import { getContractExpirationInfo, calculateDynamicDailyVolatility } from "./expiration-calendar";
+import { getContractExpirationInfo } from "./expiration-calendar";
 import { roundToTick, getNextMonday } from "@shared/utils";
 import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek } from "./weekly-calculator";
+import { calculateExpectedMove } from "./volatility-models";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 let lastRunDate: string | null = null;
@@ -57,6 +58,10 @@ function shouldGenerateWeeklyMoves(): boolean {
   return true;
 }
 
+/**
+ * Generate weekly expected moves for all contracts
+ * NEW METHODOLOGY: Uses annualized IV with weeklyMove = price × iv × √(5/365)
+ */
 export async function generateWeeklyMovesForAllContracts() {
   try {
     console.log("📅 Generating weekly expected moves for upcoming week...");
@@ -68,11 +73,15 @@ export async function generateWeeklyMovesForAllContracts() {
     console.log(`🗓️  Calculating moves for week starting: ${nextMonday.toISOString().split('T')[0]}`);
     
     for (const contract of contracts) {
-      // Calculate weekly moves for next week
+      // Get the latest weekly IV override (manual user update) for strategic tracking
+      const latestWeeklyIV = await storage.getLatestWeeklyIV(contract.symbol);
+      const annualizedIV = latestWeeklyIV?.weeklyIv || contract.weeklyVolatility;
+      
+      // NEW FORMULA: Calculate weekly moves using annualized IV
       const calculatedMoves = calculateWeeklyExpectedMoves(
         contract.symbol,
         contract.currentPrice,
-        contract.weeklyVolatility,
+        annualizedIV, // Use annualized IV
         nextMonday, // Use next Monday as week start
         "1" // Start with Monday (day 1 as string)
       );
@@ -90,7 +99,8 @@ export async function generateWeeklyMovesForAllContracts() {
       const result = await storage.createWeeklyMoves(calculatedMoves);
       results.push(result);
       
-      console.log(`✨ Generated weekly moves for ${contract.symbol} (week starting ${nextMonday.toISOString().split('T')[0]})`);
+      const ivSource = latestWeeklyIV ? ' [manual weekly IV]' : ' [contract IV]';
+      console.log(`✨ Generated weekly moves for ${contract.symbol} (week starting ${nextMonday.toISOString().split('T')[0]})${ivSource}`);
     }
     
     // Mark weekly generation as completed for today
@@ -106,6 +116,10 @@ export async function generateWeeklyMovesForAllContracts() {
   }
 }
 
+/**
+ * Run nightly calculation to update prices and daily predictions
+ * NEW METHODOLOGY: Uses expectedMove = price × iv × √(daysToExpiration/365)
+ */
 export async function runNightlyCalculation() {
   try {
     console.log("🌙 Starting nightly calculation...");
@@ -132,16 +146,20 @@ export async function runNightlyCalculation() {
       // Get expiration information for this contract
       const expirationInfo = getContractExpirationInfo(quote.symbol, new Date());
       
-      // Try to get latest daily IV, fallback to weekly volatility
+      // Try to get latest daily IV (tactical), fallback to weekly volatility
       const latestDailyIV = await storage.getLatestDailyIV(quote.symbol);
-      const volatilityToUse = latestDailyIV?.dailyIv || contract.weeklyVolatility;
+      const annualizedIV = latestDailyIV?.dailyIv || contract.weeklyVolatility;
       
-      // Calculate dynamic daily volatility: σ_daily = σ_weekly / √N
-      // Use daily IV if available (tactical), otherwise use weekly volatility
-      const dailyVolatility = calculateDynamicDailyVolatility(
-        volatilityToUse,
+      // NEW FORMULA: Calculate expected move using annualized IV
+      const moveResult = calculateExpectedMove(
+        'standard',
+        quote.regularMarketPrice,
+        annualizedIV,
         expirationInfo.daysRemaining
       );
+      
+      // Calculate dailyVolatility as percentage for backward compatibility
+      const dailyVolatility = moveResult.dailyMove / quote.regularMarketPrice;
       
       // Update contract with latest price data and expiration info
       await storage.updateContract(quote.symbol, {
@@ -168,16 +186,24 @@ export async function runNightlyCalculation() {
       const contract = await storage.getContractBySymbol(quote.symbol);
       if (!contract) continue;
       
-      // Get the updated daily volatility from contract (now using dynamic N with daily IV if available)
-      const dailyVolatility = contract.dailyVolatility;
-      
       // Get the source IV used for calculation
       const latestDailyIV = await storage.getLatestDailyIV(quote.symbol);
-      const sourceIV = latestDailyIV?.dailyIv || contract.weeklyVolatility;
+      const annualizedIV = latestDailyIV?.dailyIv || contract.weeklyVolatility;
+      
+      // NEW FORMULA: Calculate expected move
+      const moveResult = calculateExpectedMove(
+        'standard',
+        quote.regularMarketPrice,
+        annualizedIV,
+        contract.daysRemaining || 1
+      );
+      
+      const dailyMove = moveResult.dailyMove;
+      const dailyVolatility = contract.dailyVolatility;
       
       // Calculate expected move ranges for next trading day (before tick rounding)
-      const rawExpectedHigh = quote.regularMarketPrice + (quote.regularMarketPrice * dailyVolatility);
-      const rawExpectedLow = quote.regularMarketPrice - (quote.regularMarketPrice * dailyVolatility);
+      const rawExpectedHigh = quote.regularMarketPrice + dailyMove;
+      const rawExpectedLow = quote.regularMarketPrice - dailyMove;
       
       // Round to valid tick increments for the contract
       const expectedHigh = roundToTick(rawExpectedHigh, contract.tickSize);
@@ -189,7 +215,7 @@ export async function runNightlyCalculation() {
         date: new Date(), // Tomorrow's prediction based on today's close
         lastTradedPrice: quote.regularMarketPrice,
         previousClose: quote.regularMarketPreviousClose,
-        weeklyVolatility: sourceIV, // Record the IV used (daily or weekly)
+        weeklyVolatility: annualizedIV, // Record the IV used (daily or weekly)
         dailyVolatility,
         expectedHigh,
         expectedLow,

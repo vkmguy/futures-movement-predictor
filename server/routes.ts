@@ -3,9 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertFuturesContractSchema, insertHistoricalPriceSchema, insertDailyPredictionSchema, insertPriceAlertSchema, insertWeeklyExpectedMovesSchema, insertHistoricalDailyExpectedMovesSchema, type HistoricalPrice } from "@shared/schema";
 import { setupMarketSimulator } from "./market-simulator";
-import { calculateVolatility } from "./volatility-models";
-import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek, getWeekStartDate } from "./weekly-calculator";
-import { getNextMonday } from "@shared/utils";
+import { calculateExpectedMove } from "./volatility-models";
+import { calculateWeeklyExpectedMoves, getCurrentDayOfWeek, getWeekStartDate, getNextMonday } from "./weekly-calculator";
 import { getMarketStatus } from "./market-hours";
 import { getLastTradedPrice, getAllLastTradedPrices } from "./yahoo-finance";
 import { runNightlyCalculation } from "./nightly-scheduler";
@@ -443,64 +442,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate prediction based on current price and volatility
+  // NEW METHODOLOGY: Uses expectedMove = currentPrice × iv × √(daysToExpiration/365)
   app.post("/api/generate-prediction", async (req, res) => {
     try {
-      const { contractSymbol, currentPrice, weeklyVolatility, model = 'standard', recentPriceChange } = req.body;
+      const { contractSymbol, currentPrice, annualizedIV, model = 'standard', recentPriceChange } = req.body;
       
-      if (!contractSymbol || typeof currentPrice !== 'number' || typeof weeklyVolatility !== 'number') {
+      if (!contractSymbol || typeof currentPrice !== 'number' || typeof annualizedIV !== 'number') {
         return res.status(400).json({ error: "Invalid input parameters" });
       }
 
-      // Get contract to check days remaining
+      // Get contract to check days remaining until expiration
       const contract = await storage.getContractBySymbol(contractSymbol);
-      const daysRemaining = contract?.daysRemaining ?? undefined;
+      const daysToExpiration = contract?.daysRemaining ?? 1;
 
-      // Use advanced volatility model with dynamic scaling
-      const volResult = calculateVolatility(
+      // NEW FORMULA: Calculate expected move using annualized IV
+      const moveResult = calculateExpectedMove(
         model as 'standard' | 'garch' | 'ewma',
-        weeklyVolatility,
+        currentPrice,
+        annualizedIV,
+        daysToExpiration,
         recentPriceChange,
-        undefined, // previousVolatility
-        daysRemaining
+        undefined // previousVolatility
       );
 
-      const dailyMove = currentPrice * volResult.dailyVolatility;
+      const dailyMove = moveResult.dailyMove;
+      
+      // For backward compatibility, calculate legacy dailyVolatility value
+      const legacyDailyVol = dailyMove / currentPrice;
       
       const prediction = await storage.createPrediction({
         contractSymbol,
         currentPrice,
         predictedMin: currentPrice - dailyMove,
         predictedMax: currentPrice + dailyMove,
-        dailyVolatility: volResult.dailyVolatility,
-        weeklyVolatility: volResult.weeklyVolatility || weeklyVolatility,
-        confidence: volResult.confidence,
+        dailyVolatility: legacyDailyVol, // Store as percentage for backward compatibility
+        weeklyVolatility: annualizedIV, // Store the IV used
+        confidence: moveResult.confidence,
       });
 
-      res.status(201).json({ prediction, volResult });
+      res.status(201).json({ prediction, moveResult });
     } catch (error) {
       res.status(500).json({ error: "Failed to generate prediction" });
     }
   });
 
-  // Calculate volatility using advanced models
+  // Calculate expected move using advanced models
+  // NEW METHODOLOGY: Returns dollar move, not volatility percentage
   app.post("/api/volatility/calculate", async (req, res) => {
     try {
-      const { weeklyVolatility, model = 'standard', recentPriceChange, previousVolatility } = req.body;
+      const { currentPrice, annualizedIV, daysToExpiration = 1, model = 'standard', recentPriceChange, previousVolatility } = req.body;
       
-      if (typeof weeklyVolatility !== 'number') {
-        return res.status(400).json({ error: "weeklyVolatility must be a number" });
+      if (typeof currentPrice !== 'number' || typeof annualizedIV !== 'number') {
+        return res.status(400).json({ error: "currentPrice and annualizedIV must be numbers" });
       }
 
-      const result = calculateVolatility(
+      const result = calculateExpectedMove(
         model as 'standard' | 'garch' | 'ewma',
-        weeklyVolatility,
+        currentPrice,
+        annualizedIV,
+        daysToExpiration,
         recentPriceChange,
         previousVolatility
       );
 
       res.json(result);
     } catch (error) {
-      res.status(500).json({ error: "Failed to calculate volatility" });
+      res.status(500).json({ error: "Failed to calculate expected move" });
     }
   });
 
@@ -579,11 +586,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate weekly expected moves
+  // NEW METHODOLOGY: Uses weeklyMove = currentPrice × iv × √(5/365)
   app.post("/api/weekly-moves/generate", async (req, res) => {
     try {
-      const { contractSymbol, currentPrice, weeklyVolatility } = req.body;
+      const { contractSymbol, currentPrice, annualizedIV } = req.body;
       
-      if (!contractSymbol || typeof currentPrice !== 'number' || typeof weeklyVolatility !== 'number') {
+      if (!contractSymbol || typeof currentPrice !== 'number' || typeof annualizedIV !== 'number') {
         return res.status(400).json({ error: "Invalid input parameters" });
       }
 
@@ -601,12 +610,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Generate moves for upcoming week starting next Monday
-      const weekOpenPrice = currentPrice; // Week will start with current Friday close as reference
+      // NEW FORMULA: weeklyMove = currentPrice × iv × √(5/365)
+      const weekOpenPrice = currentPrice;
       
       const calculatedMoves = calculateWeeklyExpectedMoves(
         contractSymbol,
         weekOpenPrice,
-        weeklyVolatility,
+        annualizedIV, // Use annualized IV instead of weeklyVolatility
         nextMonday, // Use next Monday as week start
         "1" // Start with Monday (day 1)
       );
