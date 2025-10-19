@@ -61,13 +61,17 @@ export default function WeeklyTracker() {
     mutationFn: async () => {
       if (!contracts) return;
       
-      const promises = contracts.map(contract =>
-        apiRequest('POST', '/api/weekly-moves/generate', {
+      const promises = contracts.map(contract => {
+        // Prioritize manual weekly IV over contract's weekly volatility
+        const weeklyIV = weeklyIVMap?.[contract.symbol];
+        const weeklyVolatility = weeklyIV ? weeklyIV.weeklyIv : contract.weeklyVolatility || 0.20;
+        
+        return apiRequest('POST', '/api/weekly-moves/generate', {
           contractSymbol: contract.symbol,
           currentPrice: contract.currentPrice,
-          weeklyVolatility: contract.weeklyVolatility || 0.20, // Use contract's weekly volatility
-        })
-      );
+          weeklyVolatility,
+        });
+      });
       
       return await Promise.all(promises);
     },
