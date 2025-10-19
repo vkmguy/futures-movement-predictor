@@ -20,9 +20,14 @@ I prefer detailed explanations and iterative development. Ask before making majo
 -   **Data Model**: Includes `FuturesContract` (prices, changes, volume, open interest, volatility), `HistoricalPrice` (OHLC data), `DailyPrediction` (min/max, confidence, trend), `HistoricalDailyExpectedMoves`, `WeeklyExpectedMoves` (with database persistence), `DailyIvHistory` (tactical IV tracking with timestamps), and `PriceAlert`.
 -   **Dual-IV Tracking System** (October 2025):
     - **Daily IV (Tactical)**: Manually updated implied volatility stored in `daily_iv_history` table with date-based tracking and timestamps. Users update these values from real-time broker data for precise intraday trading decisions. Persists across nightly calculations and never gets reset.
-    - **Weekly IV (Strategic)**: Locked implied volatility captured during Saturday weekly generation, stored in `weekly_expected_moves` table. Provides stable week-long predictions for strategic planning.
-    - **Separation**: Daily predictions use latest daily IV (with weekly fallback), weekly tracker displays locked strategic IV. Nightly scheduler consumes but never modifies daily IVs.
-    - **UI Display**: Dashboard shows both IVs with clear labeling ("Daily IV: 22.5% updated 2h ago" vs "Weekly IV: 20.0% Locked"). Predictions page highlights which IV source is active.
+    - **Weekly IV (Strategic)**: Manually updateable implied volatility stored in `weekly_iv_overrides` table with full historical tracking. Provides flexible strategic IV updates at any time (not just on Saturday). Can be updated independently from daily IV.
+    - **Separation**: Daily predictions use latest daily IV (with weekly fallback), weekly tracker displays manual weekly IV when available. Nightly scheduler consumes but never modifies manual IV updates.
+    - **IV Source Transparency** (October 2025): Complete transparency across all pages showing which IV values are driving predictions:
+      - **Dashboard**: VolatilityCard displays "Manual Daily IV" badge with timestamp when daily IV exists, "Manual" badge with timestamp for weekly IV. PredictionCard shows "Daily IV" badge when using manual daily IV for calculations.
+      - **Predictions Page**: Shows Daily IV (Tactical) with manual badge and timestamp, Weekly IV (Strategic) with manual badge and timestamp, clearly indicating which IV source is active for each prediction.
+      - **Weekly Tracker**: Displays "Manual" badge with timestamp next to IV value when manual weekly IV override exists, providing full provenance for weekly predictions.
+      - **Type Safety**: All pages use centralized `DailyIvHistory` and `WeeklyIvOverride` types from `@shared/schema`, eliminating interface duplication and ensuring type consistency.
+      - **Timestamp Format**: Relative time display (e.g., "Updated 2h ago" or "Updated 1d ago") with clock icon for quick reference.
 -   **Prediction Models**:
     1.  **Daily Predictions (Dynamic √N Model)**: Uses `σ_daily = σ_weekly / √N` where N is trading days remaining until expiration. This model is applied for short-term trading decisions and is dynamic, changing daily based on contract-specific expiration rules for equity indices and commodities.
     2.  **Weekly Expected Moves (Forward-Looking Strategic Model)**: 
