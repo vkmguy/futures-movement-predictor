@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { CheckCircle2, XCircle, TrendingUp, Target } from "lucide-react";
 import { ContractSelector } from "@/components/contract-selector";
-import type { HistoricalPrice, DailyPrediction } from "@shared/schema";
+import type { HistoricalPrice, DailyPrediction, HistoricalDailyExpectedMoves } from "@shared/schema";
 
 interface BacktestResult {
   date: string;
@@ -28,42 +28,60 @@ export default function Backtesting() {
     avgError: number;
   } | null>(null);
 
-  const { data: historical } = useQuery<HistoricalPrice[]>({
-    queryKey: ['/api/historical', selectedContract],
+  // Fetch historical daily moves data which contains expected ranges and actual closes
+  const { data: allHistorical, isLoading: isLoadingHistorical } = useQuery<HistoricalDailyExpectedMoves[]>({
+    queryKey: ['/api/historical-daily-moves'],
   });
 
-  const { data: predictions } = useQuery<DailyPrediction[]>({
-    queryKey: ['/api/predictions', selectedContract],
+  const { data: allPredictions, isLoading: isLoadingPredictions } = useQuery<DailyPrediction[]>({
+    queryKey: ['/api/predictions', 'ALL'],
   });
+
+  // Filter data by selected contract
+  const historical = allHistorical?.filter(h => h.contractSymbol === selectedContract) || [];
+  const predictions = allPredictions?.filter(p => p.contractSymbol === selectedContract) || [];
 
   const runBacktest = () => {
-    if (!historical || !predictions || historical.length === 0) return;
+    if (!historical || !predictions || historical.length === 0 || predictions.length === 0) return;
 
     const results: BacktestResult[] = [];
     let totalError = 0;
     let accurateCount = 0;
 
-    // Simulate backtesting by comparing predictions with historical data
-    historical.slice(-10).forEach((price, index) => {
-      const prediction = predictions[0]; // In real scenario, match by date
-      if (prediction) {
-        const withinRange = price.close >= prediction.predictedMin && price.close <= prediction.predictedMax;
-        const error = Math.abs(price.close - prediction.currentPrice);
-        const accuracy = 100 - (error / prediction.currentPrice) * 100;
+    // Use the most recent prediction for the selected contract
+    const prediction = predictions[0];
+    
+    if (!prediction) {
+      console.warn('No prediction found for selected contract');
+      return;
+    }
 
-        if (withinRange) accurateCount++;
-        totalError += error;
+    // Backtest using historical daily expected moves data
+    historical.slice(-10).forEach((move) => {
+      // Skip if no actual close price recorded yet
+      if (!move || !move.actualClose) return;
+      
+      const withinRange = move.actualClose >= move.expectedLow && move.actualClose <= move.expectedHigh;
+      const error = Math.abs(move.actualClose - move.lastTradedPrice);
+      const accuracy = 100 - (error / move.lastTradedPrice) * 100;
 
-        results.push({
-          date: new Date(price.date).toLocaleDateString(),
-          predictedMin: prediction.predictedMin,
-          predictedMax: prediction.predictedMax,
-          actualPrice: price.close,
-          withinRange,
-          accuracy: Math.max(0, accuracy),
-        });
-      }
+      if (withinRange) accurateCount++;
+      totalError += error;
+
+      results.push({
+        date: new Date(move.date).toLocaleDateString(),
+        predictedMin: move.expectedLow,
+        predictedMax: move.expectedHigh,
+        actualPrice: move.actualClose,
+        withinRange,
+        accuracy: Math.max(0, accuracy),
+      });
     });
+
+    if (results.length === 0) {
+      console.warn('No backtest results generated');
+      return;
+    }
 
     setBacktestResults(results);
     setMetrics({
@@ -85,9 +103,13 @@ export default function Backtesting() {
         </div>
         <div className="flex items-center gap-3">
           <ContractSelector value={selectedContract} onValueChange={setSelectedContract} />
-          <Button onClick={runBacktest} disabled={!historical || historical.length === 0} data-testid="button-run-backtest">
+          <Button 
+            onClick={runBacktest} 
+            disabled={isLoadingHistorical || isLoadingPredictions || !allHistorical || historical.length === 0 || predictions.length === 0} 
+            data-testid="button-run-backtest"
+          >
             <Target className="h-4 w-4 mr-2" />
-            Run Backtest
+            {isLoadingHistorical || isLoadingPredictions ? 'Loading...' : 'Run Backtest'}
           </Button>
         </div>
       </div>
@@ -120,7 +142,7 @@ export default function Backtesting() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono">{metrics.accuracyRate.toFixed(1)}%</div>
+              <div className="text-2xl font-bold font-mono">{metrics.accuracyRate?.toFixed(1) ?? '0.0'}%</div>
             </CardContent>
           </Card>
 
@@ -130,7 +152,7 @@ export default function Backtesting() {
               <XCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono">${metrics.avgError.toFixed(2)}</div>
+              <div className="text-2xl font-bold font-mono">${metrics.avgError?.toFixed(2) ?? '0.00'}</div>
             </CardContent>
           </Card>
         </div>
@@ -193,19 +215,19 @@ export default function Backtesting() {
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{result.date}</span>
                         <span className="text-xs text-muted-foreground">
-                          Range: ${result.predictedMin.toFixed(2)} - ${result.predictedMax.toFixed(2)}
+                          Range: ${result.predictedMin?.toFixed(2) ?? 'N/A'} - ${result.predictedMax?.toFixed(2) ?? 'N/A'}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-end">
                         <span className="text-sm font-mono font-medium">
-                          ${result.actualPrice.toFixed(2)}
+                          ${result.actualPrice?.toFixed(2) ?? 'N/A'}
                         </span>
                         <span className="text-xs text-muted-foreground">Actual Price</span>
                       </div>
                       <Badge variant={result.withinRange ? "default" : "destructive"}>
-                        {result.accuracy.toFixed(1)}%
+                        {result.accuracy?.toFixed(1) ?? '0.0'}%
                       </Badge>
                     </div>
                   </div>
@@ -216,13 +238,24 @@ export default function Backtesting() {
         </>
       )}
 
-      {!backtestResults.length && (
+      {!backtestResults.length && !metrics && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Target className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Backtest Results</h3>
             <p className="text-sm text-muted-foreground text-center max-w-md">
-              Select a contract and click "Run Backtest" to validate prediction accuracy against historical data.
+              {historical.length > 0 && historical.every(h => !h.actualClose) ? (
+                <>
+                  Historical data is available but actual closing prices haven't been recorded yet.
+                  The backtesting feature requires historical data with actual outcomes to validate predictions.
+                  Check back after the market closes and daily data collection runs.
+                </>
+              ) : (
+                <>
+                  Select a contract and click "Run Backtest" to validate prediction accuracy against historical data.
+                  Backtesting requires historical records with actual closing prices.
+                </>
+              )}
             </p>
           </CardContent>
         </Card>

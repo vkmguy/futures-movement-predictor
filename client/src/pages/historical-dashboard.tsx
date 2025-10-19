@@ -21,14 +21,21 @@ import {
 import { Download, RefreshCw, TrendingUp, TrendingDown, CheckCircle2, XCircle, Loader2, RefreshCcw } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { HistoricalDailyExpectedMoves, FuturesContract } from "@shared/schema";
+import { roundToTick } from "@shared/utils";
 
 export default function HistoricalDashboard() {
   const [selectedContract, setSelectedContract] = useState<string>("ALL");
 
-  // Fetch contracts for filter
+  // Fetch contracts for filter and tick size lookup
   const { data: contracts = [] } = useQuery<FuturesContract[]>({
     queryKey: ["/api/contracts"],
   });
+
+  // Create contract lookup map for tick size access
+  const contractsBySymbol = contracts.reduce((map, contract) => {
+    map[contract.symbol] = contract;
+    return map;
+  }, {} as Record<string, FuturesContract>);
 
   // Fetch historical daily moves
   const { data: historicalMoves = [], isLoading } = useQuery<HistoricalDailyExpectedMoves[]>({
@@ -74,18 +81,23 @@ export default function HistoricalDashboard() {
     
     const csv = [
       ["Date", "Contract", "Last Price", "Previous Close", "Expected High", "Expected Low", "Actual Close", "Within Range", "Daily Vol %", "Weekly Vol %"].join(","),
-      ...dataToExport.map(move => [
-        new Date(move.date).toLocaleDateString(),
-        move.contractSymbol,
-        move.lastTradedPrice.toFixed(2),
-        move.previousClose.toFixed(2),
-        move.expectedHigh.toFixed(2),
-        move.expectedLow.toFixed(2),
-        move.actualClose?.toFixed(2) || "N/A",
-        move.withinRange === 1 ? "Yes" : move.withinRange === 0 ? "No" : "N/A",
-        (move.dailyVolatility * 100).toFixed(2) + "%",
-        (move.weeklyVolatility * 100).toFixed(2) + "%",
-      ].join(","))
+      ...dataToExport.map(move => {
+        const contract = contractsBySymbol[move.contractSymbol];
+        const tickSize = contract?.tickSize || 0.01;
+        
+        return [
+          new Date(move.date).toLocaleDateString(),
+          move.contractSymbol,
+          roundToTick(move.lastTradedPrice, tickSize).toFixed(2),
+          roundToTick(move.previousClose, tickSize).toFixed(2),
+          roundToTick(move.expectedHigh, tickSize).toFixed(2),
+          roundToTick(move.expectedLow, tickSize).toFixed(2),
+          move.actualClose ? roundToTick(move.actualClose, tickSize).toFixed(2) : "N/A",
+          move.withinRange === 1 ? "Yes" : move.withinRange === 0 ? "No" : "N/A",
+          (move.dailyVolatility * 100).toFixed(2) + "%",
+          (move.weeklyVolatility * 100).toFixed(2) + "%",
+        ].join(",");
+      })
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
@@ -284,34 +296,39 @@ export default function HistoricalDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {historicalMoves.map((move) => (
-                    <TableRow key={move.id} data-testid={`row-move-${move.id}`}>
-                      <TableCell data-testid={`cell-date-${move.id}`}>
-                        {new Date(move.date).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{move.contractSymbol}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {move.lastTradedPrice.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-green-600 dark:text-green-400">
-                        {move.expectedHigh.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-red-600 dark:text-red-400">
-                        {move.expectedLow.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {move.actualClose ? move.actualClose.toFixed(2) : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(move)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {(move.dailyVolatility * 100).toFixed(2)}%
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {historicalMoves.map((move) => {
+                    const contract = contractsBySymbol[move.contractSymbol];
+                    const tickSize = contract?.tickSize || 0.01;
+                    
+                    return (
+                      <TableRow key={move.id} data-testid={`row-move-${move.id}`}>
+                        <TableCell data-testid={`cell-date-${move.id}`}>
+                          {new Date(move.date).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{move.contractSymbol}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {roundToTick(move.lastTradedPrice, tickSize).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-green-600 dark:text-green-400">
+                          {roundToTick(move.expectedHigh, tickSize).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-red-600 dark:text-red-400">
+                          {roundToTick(move.expectedLow, tickSize).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {move.actualClose ? roundToTick(move.actualClose, tickSize).toFixed(2) : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(move)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {(move.dailyVolatility * 100).toFixed(2)}%
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
