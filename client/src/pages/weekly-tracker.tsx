@@ -150,8 +150,8 @@ export default function WeeklyTracker() {
     return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
   };
 
-  // NEW FEATURE: Get only remaining trading days in the week
-  // Monday → shows Mon-Fri, Tuesday → shows Tue-Fri, Wednesday → shows Wed-Fri, etc.
+  // Get remaining trading days in the week (for styling logic)
+  // Monday → Mon-Fri, Tuesday → Tue-Fri, Wednesday → Wed-Fri, etc.
   const getRemainingDays = (): DayOfWeek[] => {
     const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
@@ -160,10 +160,16 @@ export default function WeeklyTracker() {
       return [...DAYS];
     }
     
-    // Weekday: Show only remaining days (including today)
+    // Weekday: Get remaining days (including today)
     // Monday (1) → all 5 days, Tuesday (2) → 4 days, ..., Friday (5) → 1 day
     const remainingDaysCount = 6 - today; // Monday=5, Tuesday=4, ..., Friday=1
     return DAYS.slice(5 - remainingDaysCount); // Slice from appropriate start index
+  };
+
+  // Check if a day is in the past (completed trading day)
+  const isPastDay = (day: DayOfWeek): boolean => {
+    const remainingDays = getRemainingDays();
+    return !remainingDays.includes(day);
   };
 
   return (
@@ -251,8 +257,8 @@ export default function WeeklyTracker() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                  {/* NEW FEATURE: Only show remaining days in the week */}
-                  {getRemainingDays().map((day) => {
+                  {/* Show all 5 days throughout the week for historical tracking */}
+                  {DAYS.map((day) => {
                     const { dayCapitalized, expectedHigh, expectedLow, actualClose } = getDayData(moves, day);
                     const contract = contractsBySymbol[moves.contractSymbol];
                     const tickSize = contract?.tickSize || 0.01;
@@ -262,17 +268,27 @@ export default function WeeklyTracker() {
                     const roundedExpectedLow = roundToTick(expectedLow, tickSize);
                     
                     const isCurrent = isCurrentDay(day);
+                    const isPast = isPastDay(day);
                     const status = getDayStatus(roundedExpectedHigh, roundedExpectedLow, actualClose);
                     
                     return (
                       <div 
                         key={day}
-                        className={`relative p-4 rounded-md border ${isCurrent ? 'border-primary bg-primary/5' : 'border-border'}`}
+                        className={`relative p-4 rounded-md border ${
+                          isCurrent ? 'border-primary bg-primary/5' : 
+                          isPast ? 'border-border/50 bg-muted/30 opacity-75' : 
+                          'border-border'
+                        }`}
                         data-testid={`day-${day}`}
                       >
                         {isCurrent && (
                           <div className="absolute -top-2 left-2">
                             <Badge variant="default" className="text-xs">Today</Badge>
+                          </div>
+                        )}
+                        {isPast && actualClose !== null && (
+                          <div className="absolute -top-2 left-2">
+                            <Badge variant="outline" className="text-xs bg-background">Complete</Badge>
                           </div>
                         )}
                         
