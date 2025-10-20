@@ -53,7 +53,7 @@ I prefer detailed explanations and iterative development. Ask before making majo
         - **Persistence**: Fully database-backed with automatic deduplication (one record per contract per week)
         - **Stability**: Locked once generated - doesn't change during the week (unlike dynamic daily predictions)
         - **Week Start Date**: Always stores next Monday as the week_start reference date
-        - **Dynamic Display**: Shows only remaining days in the current week (Mon-Fri → Tue-Fri → Wed-Fri as week progresses)
+        - **Historical Tracking Display** (October 2025): Shows all 5 days (Mon-Fri) throughout the week for historical tracking. Past days are visually distinguished with dimmed styling and "Complete" badges when actual close data exists, while maintaining remaining-days logic for styling purposes
     3.  **Advanced Volatility Models**: Supports user-selectable **Standard Model** (default, direct conversion), **GARCH(1,1)** (time-weighted, adapts to recent volatility clusters), and **EWMA** (recent prices weighted more heavily) models. All apply annualized √(Days/252) expiration-based scaling for daily predictions.
 -   **Expiration Calendar System**: Dynamically calculates trading days remaining until expiration, excluding weekends and US market holidays, based on specific rules for Equity Index, Gold, and Crude Oil futures.
     - **Weekly Equity Index Contracts** (/NQ, /ES, /YM, /RTY): Expire every Friday at 5 PM ET (1-5 days to expiration)
